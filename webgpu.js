@@ -52,6 +52,11 @@ function main(device, circleShaderSrc)
     const presentationFmt = navigator.gpu.getPreferredCanvasFormat();
     const context = canvas.getContext('webgpu');
     context.configure({device, format: presentationFmt} )
+
+    // Circle Render Data ------
+    const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
+    if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
+
 }
 
 initWebGPU();
