@@ -1,6 +1,6 @@
 use std::cmp;
 
-use var::FLUID_CELL;
+use var::{FLUID_CELL, SOLID_CELL};
 mod var;
 
 fn clamp(x: f32, min: f32, max: f32) -> i32 {
@@ -482,6 +482,24 @@ impl FlipFluid {
                     self.v[center as usize] -= sy0 * p;
                     self.v[top as usize] += sy1 * p;
                 }
+            }
+        }
+    }
+
+    fn update_cell_colours(mut self) {
+        self.cell_colour.fill(0.0);
+
+        for i in 0..self.f_num_cells {
+            if self.cell_type[i as usize] == SOLID_CELL {
+                self.cell_colour[3 * i as usize] = 0.5;
+                self.cell_colour[3 * i as usize + 1] = 0.5;
+                self.cell_colour[3 * i as usize + 2] = 0.5;
+            } else if self.cell_type[i as usize] == FLUID_CELL {
+                let mut d = self.particle_density[i as usize];
+                if self.particle_rest_density > 0.0 {
+                    d /= self.particle_rest_density;
+                }
+                //self.set_sci_colour(i, d, 0.0, 2.0);
             }
         }
     }
