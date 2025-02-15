@@ -73,8 +73,8 @@ function main(device, circleShaderSrc)
     // 0       0--1
     const indexData = new Uint32Array([0, 1, 2,   0, 2, 3]);
 
-    const vertexSize   = 4 * 4;
-    const instUnitSize = 4 * 4;
+    const vertexSize   = 4 * 4; // 4 x 4byte floats
+    const instUnitSize = 4 * 4; // 4 x 4byte floats
 
     const vertexLayout = [
         {arrayStride: vertexSize,   stepMode: 'vertex',   attributes: [ {shaderLocation: 0, offset: 0, format: 'float32x2'},
@@ -86,8 +86,38 @@ function main(device, circleShaderSrc)
     const instBufferSize   = instUnitSize * 100;
     const indexBufferSize  = indexData.byteLength;
 
-    console.log(vertexData)
-    console.log(indexData)
+
+    const circlePipeline = device.createRenderPipeline(
+        {
+            label: 'Circle Pipeline',
+            layout: 'auto',
+            vertex:   { module: circleShaderModule, buffers: vertexLayout},
+            fragment: { module: circleShaderModule, targets: [ {format: presentationFmt} ]}
+        });
+
+    const renderPassDescriptor = {
+        label: 'main canvas renderer',
+        colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
+    }
+
+    function render()
+    {
+        // Set canvas as texture to render too.
+        renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
+        const encoder = device.createCommandEncoder({ label: 'epic encoder'});
+
+        const pass = encoder.beginRenderPass(renderPassDescriptor);
+
+
+        pass.end();
+        const commandBuffer = encoder.finish();
+
+        // Submit To GPUUUUU
+        device.queue.submit([commandBuffer]);
+
+        // todo: request animation frame loop
+    }
+    render();
 }
 
 initWebGPU();
