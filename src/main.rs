@@ -297,11 +297,39 @@ impl FlipFluid {
                         let cell_nr: i32 = xi*self.p_num_y+yi;
                         let first: i32 = self.first_cell_particles[(cell_nr) as usize];
                         let last: i32 = self.first_cell_particles[(cell_nr + 1) as usize];
+                        for j in first..last{
+                            let id: i32 = self.cell_particle_ids[j as usize];
+                            if id == i{continue;}
+                            let qx: f32 = self.particle_pos[(2*id) as usize];
+                            let qy: f32 = self.particle_pos[(2*id+1) as usize];
+
+                            let mut dx: f32 = qx - px;
+                            let mut dy: f32 = qy - py;
+                            let d2: f32 = dx * dx + dy * dy;
+                            if d2 > min_dist_2 || d2 == 0.0{continue;}
+                            let d: f32 = libm::sqrtf(d2);
+                            let s: f32 = 0.5 * (min_dist - d) / d;
+                            dx *= s;
+                            dy *= s;
+                            self.particle_pos[(2*i) as usize] -= dx;
+                            self.particle_pos[(2*i+1) as usize] -= dy;
+                            self.particle_pos[(2*id) as usize] += dx;
+                            self.particle_pos[(2*id+1) as usize] -= dy;
+
+                            // diffuse colours
+                            
+                            for k in 0..3{
+                                let colour0: f32 = self.particle_colour[(3*i+k) as usize];
+                                let colour1: f32 = self.particle_colour[(3*id+k) as usize];
+                                let colour: f32 = (colour0 + colour1) * 0.5;
+                                self.particle_colour[(3*i+k) as usize] = colour0 + (colour - colour0) * colour_diffusion_coeff;
+                                self.particle_colour[(3*id+k) as usize] = colour1 + (colour - colour1) * colour_diffusion_coeff;
+                            }
+                        }
                     }
                 }
             }
         }
-
     }
 }
 fn main() {
