@@ -49,16 +49,16 @@ impl FlipFluid {
         max_particles: i32,
     ) {
     }
+
+    fn integrate_particles(mut self, dt: f32 , gravity: f32){
+        for i in 0..self.num_particles{
+            self.particle_vel[(2*i+1) as usize] += dt * gravity;
+            self.particle_pos[(2*i) as usize] += self.particle_vel[(2*1 )as usize] * dt;
+            self.particle_pos[(2*i+1) as usize] += self.particle_vel[(2*i+1) as usize] * dt;
+        }
+    }
 }
 
 fn main() {
     println!("Hello, world!");
-}
-fn integrate_particles(dt: f32 , gravity: f32){
-    let num_particles = 0;
-    for i in 0..num_particles{
-
-    }
-    //Replace arrays with particles
-    todo!()
 }
