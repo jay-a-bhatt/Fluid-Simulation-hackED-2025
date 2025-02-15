@@ -176,7 +176,7 @@ impl FlipFluid {
         }
     }
 
-    fn integrate_particles(mut self, dt: f32, gravity: f32) {
+    fn integrate_particles(&mut self, dt: f32, gravity: f32) {
         for i in 0..self.num_particles {
             self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
             self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
@@ -185,7 +185,7 @@ impl FlipFluid {
     }
 
     fn handle_particle_collisions(
-        mut self,
+        &mut self,
         obstacle_x: f32,
         obstacle_y: f32,
         obstacle_radius: f32,
@@ -240,7 +240,7 @@ impl FlipFluid {
         }
     }
 
-    fn push_particles_apart(mut self, num_iters: i32) {
+    fn push_particles_apart(&mut self, num_iters: i32) {
         let colour_diffusion_coeff: f32 = 0.001;
 
         // count particles per cell
@@ -358,13 +358,13 @@ impl FlipFluid {
         }
     }
 
-    fn update_particle_density(mut self) {
+    fn update_particle_density(&mut self) {
         let n = self.f_num_y;
         let h = self.h;
         let h1 = self.f_inv_spacing;
         let h2 = self.h * 0.5;
 
-        let mut d = self.particle_density;
+        let mut d = self.particle_density.clone();
         d.fill(0.0);
 
         for i in 0..self.num_particles {
@@ -416,7 +416,7 @@ impl FlipFluid {
     }
 
     fn solve_incompressibility(
-        mut self,
+        &mut self,
         num_iters: i32,
         dt: f32,
         over_relaxation: f32,
@@ -486,7 +486,7 @@ impl FlipFluid {
         }
     }
 
-    fn update_cell_colours(mut self) {
+    fn update_cell_colours(&mut self) {
         self.cell_colour.fill(0.0);
 
         for i in 0..self.f_num_cells {
@@ -503,17 +503,19 @@ impl FlipFluid {
             }
         }
     }
-    fn update_particle_colours(mut self){
 
+    fn update_particle_colours(&mut self) {
         let h1: f32 = self.f_inv_spacing;
 
-        for i in 0..self.num_particles{
+        for i in 0..self.num_particles {
+            let s: f32 = 0.01;
 
-            let s:f32 = 0.01;
-
-            self.particle_colour[(3 * i) as usize] = (clamp(self.particle_colour[(3 * i) as usize] - s, 0.0, 1.0)) as f32;
-            self.particle_colour[(3 * i + 1) as usize] = (clamp(self.particle_colour[(3 * i + 1) as usize] - s, 0.0, 1.0)) as f32;
-            self.particle_colour[(3 * i + 2) as usize] = (clamp(self.particle_colour[(3 * i + 2) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i) as usize] =
+                (clamp(self.particle_colour[(3 * i) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 1) as usize] =
+                (clamp(self.particle_colour[(3 * i + 1) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 2) as usize] =
+                (clamp(self.particle_colour[(3 * i + 2) as usize] - s, 0.0, 1.0)) as f32;
 
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
@@ -535,37 +537,86 @@ impl FlipFluid {
         }
     }
 
-    fn set_sci_colour(mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32){
-        
+    fn set_sci_colour(mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32) {
         val = f32::min(f32::max(val, min_val), (max_val - 0.0001));
-        let d: f32 = max_val- min_val;
-        if d == 0.0{
+        let d: f32 = max_val - min_val;
+        if d == 0.0 {
             val = 0.5;
-        }
-        else{
-            val = (val- min_val) / d;
+        } else {
+            val = (val - min_val) / d;
         }
         let m: f32 = 0.25;
-        let num: f32 = (val/ m).floor();
-        let s: f32 = (val- num * m) / m;
-        let r: f32; 
-        let g: f32; 
+        let num: f32 = (val / m).floor();
+        let s: f32 = (val - num * m) / m;
+        let r: f32;
+        let g: f32;
         let b: f32;
 
-        match num{
-
-            0.0 => {r = 0.0; g = s; b = 1.0;},
-            1.0 => {r = 0.0; g = 1.0; b = 1.0 - s;},
-            2.0 => {r = s; g = 1.0; b = 0.0},
-            3.0 => {r = 1.0; g = 1.0 - s; b = 0.0},
-            _ => {r = 0.0; g = 0.0; b = 0.0}
+        match num {
+            0.0 => {
+                r = 0.0;
+                g = s;
+                b = 1.0;
+            }
+            1.0 => {
+                r = 0.0;
+                g = 1.0;
+                b = 1.0 - s;
+            }
+            2.0 => {
+                r = s;
+                g = 1.0;
+                b = 0.0
+            }
+            3.0 => {
+                r = 1.0;
+                g = 1.0 - s;
+                b = 0.0
+            }
+            _ => {
+                r = 0.0;
+                g = 0.0;
+                b = 0.0
+            }
         }
-        
+
         self.cell_colour[(3 * cell_nr) as usize] = r;
         self.cell_colour[(3 * cell_nr + 1) as usize] = g;
-        self.cell_colour[(3* cell_nr + 2) as usize] = b;
+        self.cell_colour[(3 * cell_nr + 2) as usize] = b;
     }
 
+    fn simulate(
+        &mut self,
+        dt: f32,
+        gravity: f32,
+        flip_ratio: f32,
+        num_pressure_iters: i32,
+        num_particle_iters: i32,
+        over_relaxation: f32,
+        compensate_drift: Option<bool>,
+        separate_particles: bool,
+        obstacle_x: f32,
+        obstacle_y: f32,
+        obstacle_radius: f32,
+    ) {
+        let num_sub_steps = 1;
+        let sdt = dt / num_sub_steps as f32;
+
+        for _ in 0..num_sub_steps {
+            self.integrate_particles(sdt, gravity);
+            if separate_particles {
+                self.push_particles_apart(num_particle_iters);
+            }
+            self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
+            //self.transfer_velocities(true);
+            self.update_particle_density();
+            self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
+            //self.transfer_velocities(false, flip_ratio);
+        }
+
+        self.update_particle_colours();
+        self.update_cell_colours();
+    }
 }
 
 fn main() {
