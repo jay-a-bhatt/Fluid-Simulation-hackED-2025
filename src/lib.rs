@@ -1,6 +1,6 @@
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
-
+//
 const WASM_MEMORY_BUFFER_SIZE: usize = 4;
 static mut WASM_MEMORY_BUFFER: [f32; WASM_MEMORY_BUFFER_SIZE] = [0.0; WASM_MEMORY_BUFFER_SIZE];
 
@@ -23,3 +23,14 @@ pub fn buffer_pointer() -> *const f32 {
     }
     return p;
 }
+
+fn context()
+{
+    println!("Hello, world!");
+}
+
+
+
+
+// destructure the tuple into two variables names
+
