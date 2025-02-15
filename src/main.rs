@@ -216,7 +216,3 @@ impl FlipFluid {
 fn main() {
     println!("Hello, world!");
 }
-
-
-
-
