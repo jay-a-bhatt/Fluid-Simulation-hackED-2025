@@ -24,13 +24,22 @@ pub fn buffer_pointer() -> *const f32 {
     return p;
 }
 
-fn context()
+#[link(wasm_import_module = "index.js")] //importing js functions
+extern
 {
-    println!("Hello, world!");
+    fn context() -> (i32, i32);
 }
 
+fn main()
+{
+    let width;
+    let height;
+    (width, height) = index.js.context();
+}
 
-
-
-// destructure the tuple into two variables names
-
+#[wasm_bindgen]
+pub fn update() -> i32;
+{
+    //
+    return 1;
+}
