@@ -1,13 +1,11 @@
-use std::cmp;
+use std::{cell, cmp};
 
-fn clamp(x: f32, min: f32, max: f32) -> i32{
-    if(x < min){
+fn clamp(x: f32, min: f32, max: f32) -> i32 {
+    if (x < min) {
         return (min) as i32;
-    }
-    else if(x>max){
+    } else if (x > max) {
         return (max) as i32;
-    }
-    else{
+    } else {
         return (x) as i32;
     }
 }
@@ -115,7 +113,6 @@ struct FlipFluid {
 }
 
 impl FlipFluid {
-
     fn new(
         density: f32,
         width: f32,
@@ -176,15 +173,20 @@ impl FlipFluid {
         }
     }
 
-    fn integrate_particles(mut self, dt: f32 , gravity: f32){
-        for i in 0..self.num_particles{
-            self.particle_vel[(2*i+1) as usize] += dt * gravity;
-            self.particle_pos[(2*i) as usize] += self.particle_vel[(2*1 )as usize] * dt;
-            self.particle_pos[(2*i+1) as usize] += self.particle_vel[(2*i+1) as usize] * dt;
+    fn integrate_particles(mut self, dt: f32, gravity: f32) {
+        for i in 0..self.num_particles {
+            self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
+            self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
+            self.particle_pos[(2 * i + 1) as usize] += self.particle_vel[(2 * i + 1) as usize] * dt;
         }
     }
 
-    fn handle_particle_collisions(mut self, obstacle_x: f32, obstacle_y: f32, obstacle_radius: f32){
+    fn handle_particle_collisions(
+        mut self,
+        obstacle_x: f32,
+        obstacle_y: f32,
+        obstacle_radius: f32,
+    ) {
         let h: f32 = 1.0 / self.f_inv_spacing;
         let r: f32 = self.particle_radius as f32;
         let or2: f32 = obstacle_radius * obstacle_radius;
@@ -195,83 +197,98 @@ impl FlipFluid {
         let max_x: f32 = (self.f_num_x - 1) as f32 * h - r;
         let max_y: f32 = (self.f_num_y - 1) as f32 * h - r;
 
-        for i in 0..self.num_particles{
-            let mut x = self.particle_pos[(2*i) as usize];
-            let mut y: f32 = self.particle_pos[(2*i+1)as usize];
+        for i in 0..self.num_particles {
+            let mut x = self.particle_pos[(2 * i) as usize];
+            let mut y: f32 = self.particle_pos[(2 * i + 1) as usize];
             let dx: f32 = x - obstacle_x;
             let dy: f32 = y - obstacle_y;
             let d2: f32 = dx * dx + dy * dy;
 
             //obstacle collision
 
-            if d2 < min_dist2{
-                self.particle_vel[(2*i)as usize] = 0.0;//scene.obstacle_vel_x
-                self.particle_vel[(2*i+1)as usize] = 0.0;//scene.obstacle_vel_y
+            if d2 < min_dist2 {
+                self.particle_vel[(2 * i) as usize] = 0.0; //scene.obstacle_vel_x
+                self.particle_vel[(2 * i + 1) as usize] = 0.0; //scene.obstacle_vel_y
             }
 
             //wall collisions
 
-            if x < min_x{
+            if x < min_x {
                 x = min_x;
-                self.particle_vel[(2*i)as usize] = 0.0;
+                self.particle_vel[(2 * i) as usize] = 0.0;
             }
 
-            if x > max_x{
+            if x > max_x {
                 x = max_x;
-                self.particle_vel[(2*i) as usize] = 0.0;
+                self.particle_vel[(2 * i) as usize] = 0.0;
             }
 
-            if y < min_y{
+            if y < min_y {
                 y = min_y;
-                self.particle_vel[(2*i+1)as usize] = 0.0;
+                self.particle_vel[(2 * i + 1) as usize] = 0.0;
             }
 
-            if y > max_y{
+            if y > max_y {
                 y = max_y;
-                self.particle_vel[(2*i+1)as usize] = 0.0;
+                self.particle_vel[(2 * i + 1) as usize] = 0.0;
             }
-            self.particle_pos[(2*i)as usize] = x;
-            self.particle_pos[(2*i+1)as usize] = y;
+            self.particle_pos[(2 * i) as usize] = x;
+            self.particle_pos[(2 * i + 1) as usize] = y;
         }
     }
 
-    
-    fn push_particles_apart(mut self, num_iters: i32){
-        let colour_diffusion_coeff:f32 = 0.001;
-        
+    fn push_particles_apart(mut self, num_iters: i32) {
+        let colour_diffusion_coeff: f32 = 0.001;
+
         // count particles per cell
 
         self.num_cell_particles.fill(0);
-        
-        for i in  0..self.num_particles{
-            let x: f32 = self.particle_pos[(2*i) as usize];
-            let y: f32 = self.particle_pos[(2*i+1)as usize];
-            let xi: i32 = clamp((x*self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
-            let yi: i32 = clamp((y*self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
+
+        for i in 0..self.num_particles {
+            let x: f32 = self.particle_pos[(2 * i) as usize];
+            let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+            let xi: i32 = clamp(
+                (x * self.p_inv_spacing).floor(),
+                0.0,
+                (self.p_num_x - 1) as f32,
+            );
+            let yi: i32 = clamp(
+                (y * self.p_inv_spacing).floor(),
+                0.0,
+                (self.p_num_y - 1) as f32,
+            );
             let cell_nr: i32 = xi * self.p_num_y + yi;
-            self.num_cell_particles[(cell_nr) as usize]+=1;
+            self.num_cell_particles[(cell_nr) as usize] += 1;
         }
 
         //partial sums
 
         let mut first: i32 = 0;
 
-        for i in 0..self.p_num_cells{
+        for i in 0..self.p_num_cells {
             first += self.num_cell_particles[(i) as usize];
-            self.first_cell_particles[(i)as usize] = first;
+            self.first_cell_particles[(i) as usize] = first;
         }
-        self.first_cell_particles[(self.p_num_cells) as usize] = first;  //guard
+        self.first_cell_particles[(self.p_num_cells) as usize] = first; //guard
 
         // fill particles into cells
 
-        for i in 0..self.num_particles{
-            let x: f32 = self.particle_pos[(2*i) as usize];
-            let y: f32 = self.particle_pos[(2*i+1) as usize];
+        for i in 0..self.num_particles {
+            let x: f32 = self.particle_pos[(2 * i) as usize];
+            let y: f32 = self.particle_pos[(2 * i + 1) as usize];
 
-            let xi: i32 = clamp((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
-            let yi: i32 = clamp((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
-            let cell_nr: i32 = xi* self.p_num_y + yi;
-            self.num_cell_particles[(cell_nr) as usize]-=1;
+            let xi: i32 = clamp(
+                (x * self.p_inv_spacing).floor(),
+                0.0,
+                (self.p_num_x - 1) as f32,
+            );
+            let yi: i32 = clamp(
+                (y * self.p_inv_spacing).floor(),
+                0.0,
+                (self.p_num_y - 1) as f32,
+            );
+            let cell_nr: i32 = xi * self.p_num_y + yi;
+            self.num_cell_particles[(cell_nr) as usize] -= 1;
             self.cell_particle_ids[(self.first_cell_particles[(cell_nr) as usize]) as usize] = i;
         }
 
@@ -280,10 +297,10 @@ impl FlipFluid {
         let min_dist: f32 = 2.0 * self.particle_radius;
         let min_dist_2: f32 = min_dist * min_dist;
 
-        for iter in 0..num_iters{
-            for i in 0..self.num_particles{
-                let px: f32 = self.particle_pos[(2*i) as usize];
-                let py: f32 = self.particle_pos[(2*i+1) as usize];
+        for iter in 0..num_iters {
+            for i in 0..self.num_particles {
+                let px: f32 = self.particle_pos[(2 * i) as usize];
+                let py: f32 = self.particle_pos[(2 * i + 1) as usize];
 
                 let pxi: i32 = ((px * self.p_inv_spacing).floor()) as i32;
                 let pyi: i32 = ((py * self.p_inv_spacing).floor()) as i32;
@@ -292,42 +309,93 @@ impl FlipFluid {
                 let x1: i32 = cmp::min(pxi + 1, self.p_num_x - 1);
                 let y1: i32 = cmp::min(pyi + 1, self.p_num_y - 1);
 
-                for xi in x0..=x1{
-                    for yi in y0..=y1{
-                        let cell_nr: i32 = xi*self.p_num_y+yi;
+                for xi in x0..=x1 {
+                    for yi in y0..=y1 {
+                        let cell_nr: i32 = xi * self.p_num_y + yi;
                         let first: i32 = self.first_cell_particles[(cell_nr) as usize];
                         let last: i32 = self.first_cell_particles[(cell_nr + 1) as usize];
-                        for j in first..last{
+                        for j in first..last {
                             let id: i32 = self.cell_particle_ids[j as usize];
-                            if id == i{continue;}
-                            let qx: f32 = self.particle_pos[(2*id) as usize];
-                            let qy: f32 = self.particle_pos[(2*id+1) as usize];
+                            if id == i {
+                                continue;
+                            }
+                            let qx: f32 = self.particle_pos[(2 * id) as usize];
+                            let qy: f32 = self.particle_pos[(2 * id + 1) as usize];
 
                             let mut dx: f32 = qx - px;
                             let mut dy: f32 = qy - py;
                             let d2: f32 = dx * dx + dy * dy;
-                            if d2 > min_dist_2 || d2 == 0.0{continue;}
+                            if d2 > min_dist_2 || d2 == 0.0 {
+                                continue;
+                            }
                             let d: f32 = libm::sqrtf(d2);
                             let s: f32 = 0.5 * (min_dist - d) / d;
                             dx *= s;
                             dy *= s;
-                            self.particle_pos[(2*i) as usize] -= dx;
-                            self.particle_pos[(2*i+1) as usize] -= dy;
-                            self.particle_pos[(2*id) as usize] += dx;
-                            self.particle_pos[(2*id+1) as usize] -= dy;
+                            self.particle_pos[(2 * i) as usize] -= dx;
+                            self.particle_pos[(2 * i + 1) as usize] -= dy;
+                            self.particle_pos[(2 * id) as usize] += dx;
+                            self.particle_pos[(2 * id + 1) as usize] -= dy;
 
                             // diffuse colours
-                            
-                            for k in 0..3{
-                                let colour0: f32 = self.particle_colour[(3*i+k) as usize];
-                                let colour1: f32 = self.particle_colour[(3*id+k) as usize];
+
+                            for k in 0..3 {
+                                let colour0: f32 = self.particle_colour[(3 * i + k) as usize];
+                                let colour1: f32 = self.particle_colour[(3 * id + k) as usize];
                                 let colour: f32 = (colour0 + colour1) * 0.5;
-                                self.particle_colour[(3*i+k) as usize] = colour0 + (colour - colour0) * colour_diffusion_coeff;
-                                self.particle_colour[(3*id+k) as usize] = colour1 + (colour - colour1) * colour_diffusion_coeff;
+                                self.particle_colour[(3 * i + k) as usize] =
+                                    colour0 + (colour - colour0) * colour_diffusion_coeff;
+                                self.particle_colour[(3 * id + k) as usize] =
+                                    colour1 + (colour - colour1) * colour_diffusion_coeff;
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn transfer_velocities(mut self, to_grid: bool, flip_ratio: f32) {
+        let n: i32 = self.f_num_y;
+        let h: f32 = self.h;
+        let h1: f32 = self.f_inv_spacing;
+        let h2: f32 = h * 0.5;
+
+        if (to_grid) {
+            self.prev_u = self.u.clone(); //Using .clone() so might use more memory
+            self.prev_v = self.v.clone();
+
+            self.du.fill(0.0);
+            self.dv.fill(0.0);
+            self.u.fill(0.0);
+            self.v.fill(0.0);
+
+            for i in 0..self.f_num_cells {
+                if self.s[i as usize] == 0.0 {
+                    self.cell_type[i as usize] = var::SOLID_CELL;
+                } else {
+                    self.cell_type[i as usize] = var::AIR_CELL;
+                }
+            }
+
+            for i in 0..self.num_particles {
+                let x: f32 = self.particle_pos[(2 * i) as usize];
+                let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+                let xi: i32 = clamp((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
+                let yi: i32 = clamp((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
+                let cell_nr: i32 = xi * n + yi;
+
+                if self.cell_type[cell_nr as usize] == var::AIR_CELL {
+                    self.cell_type[cell_nr as usize] = var::FLUID_CELL;
+                }
+            }
+        }
+
+        for component in 0..2 {
+            if component == 0 {
+                let dx: f32 = 0.0;
+            } else {
+                let dx: f32 = h2;
             }
         }
     }
