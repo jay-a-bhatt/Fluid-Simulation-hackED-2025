@@ -63,10 +63,10 @@ function main(device, circleShaderSrc)
     const numVertices = 4;
     const vertexData = new Float32Array([
         //  x     y
-        -0.5, -0.5,   0, 0,// BL
-        0.5, -0.5,   1, 0,// BR
-        0.5,  0.5,   1, 1,// TR
-        -0.5,  0.5,   0, 1 // TL
+        -0.5, -0.5,   0, 0, // BL
+        0.5, -0.5,   1, 0,  // BR
+        0.5,  0.5,   1, 1,  // TR
+        -0.5,  0.5,   0, 1  // TL
     ]);
 
     // 3--2       2
@@ -155,6 +155,26 @@ function main(device, circleShaderSrc)
         // todo: request animation frame loop
     }
     render();
+
+    const observer = new ResizeObserver(entries =>
+    {
+        // Iterates over all entries but there should only be one.
+        for (const entry of entries)
+        {
+            const width = entry.devicePixelContentBoxSize?.[0].inlineSize ||
+                entry.contentBoxSize[0].inlineSize * devicePixelRatio;
+            const height = entry.devicePixelContentBoxSize?.[0].blockSize ||
+                entry.contentBoxSize[0].blockSize * devicePixelRatio;
+
+            const canvas = entry.target;
+            canvas.width  = Math.max(1, Math.min(width,  device.limits.maxTextureDimension2D));
+            canvas.height = Math.max(1, Math.min(height, device.limits.maxTextureDimension2D));
+            render();
+        }
+    });
+
+    try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
+    catch { observer.observe(canvas, {box: 'content-box'}) }
 }
 
 initWebGPU();
