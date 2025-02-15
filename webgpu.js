@@ -57,14 +57,16 @@ function main(device, circleShaderSrc)
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
+    const maxObjects = 100;
+
     // Vertex Data
     const numVertices = 4;
     const vertexData = new Float32Array([
         //  x     y
-        -0.5, -0.5,   0, 0,// BL
-        0.5, -0.5,   1, 0,// BR
-        0.5,  0.5,   1, 1,// TR
-        -0.5,  0.5,   0, 1 // TL
+        -0.5, -0.5,   0, 0, // BL
+        0.5, -0.5,   1, 0,  // BR
+        0.5,  0.5,   1, 1,  // TR
+        -0.5,  0.5,   0, 1  // TL
     ]);
 
     // 3--2       2
@@ -86,6 +88,37 @@ function main(device, circleShaderSrc)
     const instBufferSize   = instUnitSize * 100;
     const indexBufferSize  = indexData.byteLength;
 
+    // create buffers
+    vertexBuf = device.createBuffer({
+        label: 'Vertex buffer for objects',
+        size: vertexBufferSize,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    });
+
+    instBuf = device.createBuffer({
+        label: 'Instance data buffer for objects',
+        size: instBufferSize,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    });
+
+    indexBuf = device.createBuffer({
+        label: 'Index buffer for objects',
+        size: indexBufferSize,
+        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
+    });
+
+    // write to buffer
+    device.queue.writeBuffer(vertexBuf, 0, vertexData);
+    device.queue.writeBuffer(indexBuf, 0, indexData);
+
+    // HACK: need to swap this out with real buffer
+    const instanceValuesF32 = new Float32Array(instBufferSize / 4);
+    for (let i = 0; i < maxObjects; i++)
+    {
+        const strideF32 = i * 4; // Stride
+        instanceValuesF32.set([rand(), rand(), rand(), 1], strideF32 + 0);
+    }
+    device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
 
     const circlePipeline = device.createRenderPipeline(
         {
@@ -99,7 +132,6 @@ function main(device, circleShaderSrc)
         label: 'main canvas renderer',
         colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
     }
-
     function render()
     {
         // Set canvas as texture to render too.
@@ -108,6 +140,11 @@ function main(device, circleShaderSrc)
 
         const pass = encoder.beginRenderPass(renderPassDescriptor);
 
+        pass.setPipeline(circlePipeline);
+        pass.setVertexBuffer(0, vertexBuf);
+        pass.setVertexBuffer(1, instBuf);
+        pass.setIndexBuffer(indexBuf, 'uint32');
+        pass.drawIndexed(6, 1);
 
         pass.end();
         const commandBuffer = encoder.finish();
@@ -118,6 +155,26 @@ function main(device, circleShaderSrc)
         // todo: request animation frame loop
     }
     render();
+
+    const observer = new ResizeObserver(entries =>
+    {
+        // Iterates over all entries but there should only be one.
+        for (const entry of entries)
+        {
+            const width = entry.devicePixelContentBoxSize?.[0].inlineSize ||
+                entry.contentBoxSize[0].inlineSize * devicePixelRatio;
+            const height = entry.devicePixelContentBoxSize?.[0].blockSize ||
+                entry.contentBoxSize[0].blockSize * devicePixelRatio;
+
+            const canvas = entry.target;
+            canvas.width  = Math.max(1, Math.min(width,  device.limits.maxTextureDimension2D));
+            canvas.height = Math.max(1, Math.min(height, device.limits.maxTextureDimension2D));
+            render();
+        }
+    });
+
+    try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
+    catch { observer.observe(canvas, {box: 'content-box'}) }
 }
 
 initWebGPU();
