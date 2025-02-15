@@ -76,13 +76,14 @@ function main(device, circleShaderSrc)
     const indexData = new Uint32Array([0, 1, 2,   0, 2, 3]);
 
     const vertexSize   = 4 * 4; // 4 x 4byte floats
-    const instUnitSize = (4+2) * 4; // 4 x 4byte floats
+    const instUnitSize = (4 + 2 + 2) * 4; // 8 x 4byte floats
 
     const vertexLayout = [
         {arrayStride: vertexSize,   stepMode: 'vertex',   attributes: [ {shaderLocation: 0, offset:  0, format: 'float32x2'},
                                                                         {shaderLocation: 2, offset:  8, format: 'float32x2'} ]}, // Per Vertex Position
         {arrayStride: instUnitSize, stepMode: 'instance', attributes: [ {shaderLocation: 1, offset:  0, format: 'float32x4'},
-                                                                        {shaderLocation: 3, offset: 16, format: 'float32x2'}]}  // Per Instance Color
+                                                                        {shaderLocation: 3, offset: 16, format: 'float32x2'},  // Per Instance Color
+                                                                        {shaderLocation: 4, offset: 24, format: 'float32x2'}]}  // Per Instance Scale
     ];
 
     const vertexBufferSize = vertexData.byteLength;
@@ -116,9 +117,10 @@ function main(device, circleShaderSrc)
     const instanceValuesF32 = new Float32Array(instBufferSize / 4);
     for (let i = 0; i < maxObjects; i++)
     {
-        const strideF32 = i * 6; // Stride
+        const strideF32 = i * 8; // Stride
         instanceValuesF32.set([rand(), rand(), rand(), 1], strideF32 + 0);
         instanceValuesF32.set([(rand()-0.5) * 2, (rand()-0.5) * 2], strideF32 + 4)
+        instanceValuesF32.set([0.1,0.1], strideF32 + 6);
     }
     device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
 
@@ -146,7 +148,7 @@ function main(device, circleShaderSrc)
         pass.setVertexBuffer(0, vertexBuf);
         pass.setVertexBuffer(1, instBuf);
         pass.setIndexBuffer(indexBuf, 'uint32');
-        pass.drawIndexed(6, 1);
+        pass.drawIndexed(6, maxObjects);
 
         pass.end();
         const commandBuffer = encoder.finish();

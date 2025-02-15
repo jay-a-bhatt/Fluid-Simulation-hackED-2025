@@ -10,14 +10,15 @@ struct vert
     @location(0) vertexPos: vec2f,    // Position in model space.
     @location(1) color: vec4f,        // Instance: Color
     @location(2) texCoord: vec2f,     // UV Coords:
-    @location(3) worldPos: vec2f
+    @location(3) worldPos: vec2f,     // Position of object in world
+    @location(4) scale: vec2f         // Local scale of object
 };
 
 @vertex
 fn vs(vertex: vert) -> vsOutput
 {
     var vsOut: vsOutput;
-    vsOut.position = vec4f(vertex.vertexPos + vertex.worldPos, 0.0, 1.0);
+    vsOut.position = vec4f((vertex.vertexPos * vertex.scale) + vertex.worldPos, 0.0, 1.0);
     vsOut.color = vertex.color;
     vsOut.texCoord = vertex.texCoord;
     return vsOut;
