@@ -1,4 +1,6 @@
 use std::cmp;
+
+use var::FLUID_CELL;
 mod var;
 
 fn clamp(x: f32, min: f32, max: f32) -> i32 {
@@ -356,7 +358,7 @@ impl FlipFluid {
         }
     }
 
-    fn update_particle_density(self) {
+    fn update_particle_density(mut self) {
         let n = self.f_num_y;
         let h = self.h;
         let h1 = self.f_inv_spacing;
@@ -398,27 +400,49 @@ impl FlipFluid {
         }
 
         if self.particle_rest_density == 0.0 {
-            let sum = 0.0;
+            let mut sum = 0.0;
             let num_fluid_cells = 0;
+
+            for i in 0..self.f_num_cells {
+                if self.cell_type[i as usize] == FLUID_CELL {
+                    sum += d[i as usize];
+                }
+            }
+
+            if num_fluid_cells > 0 {
+                self.particle_rest_density = sum / num_fluid_cells as f32;
+            }
         }
+    }
 
-    fn solve_incompressibility(mut self, num_iters: i32, dt: f32, over_relaxation: f32, mut compensate_drift: Option<bool>){
-        if compensate_drift == None{compensate_drift = Some(true);}
-         self.p.fill(0.0);
-         self.prev_u = self.u.clone(); // clone() might use more memory
-         self.prev_v = self.v.clone();
+    fn solve_incompressibility(
+        mut self,
+        num_iters: i32,
+        dt: f32,
+        over_relaxation: f32,
+        mut compensate_drift: Option<bool>,
+    ) {
+        if compensate_drift == None {
+            compensate_drift = Some(true);
+        }
+        self.p.fill(0.0);
+        self.prev_u = self.u.clone(); // clone() might use more memory
+        self.prev_v = self.v.clone();
 
-         let n: i32 = self. f_num_y;
-         let cp: f32 = self.density * self.h / dt;
+        let n: i32 = self.f_num_y;
+        let cp: f32 = self.density * self.h / dt;
 
-         for i in 0..self.f_num_cells{
+        for i in 0..self.f_num_cells {
             let u: f32 = self.u[i as usize];
             let v: f32 = self.v[i as usize];
-         }
-         for iter in 0..num_iters{
-            for i in 1..self.f_num_x-1{
-                for j in 1..self.f_num_y-1{
-                    if self.cell_type[((i * n) + j) as usize] != var::FLUID_CELL {continue;}
+        }
+
+        for _ in 0..num_iters {
+            for i in 1..self.f_num_x - 1 {
+                for j in 1..self.f_num_y - 1 {
+                    if self.cell_type[((i * n) + j) as usize] != var::FLUID_CELL {
+                        continue;
+                    }
 
                     let center: i32 = i * n + j;
                     let left: i32 = (i - 1) * n + j;
@@ -432,13 +456,18 @@ impl FlipFluid {
                     let sy0: f32 = self.s[bottom as usize];
                     let sy1: f32 = self.s[top as usize];
                     let s: f32 = sx0 + sx1 + sy0 + sy1;
-                    if s == 0.0 {continue;}
+                    if s == 0.0 {
+                        continue;
+                    }
 
-                    let mut div: f32 = self.u[right as usize] - self.u[center as usize] + self.v[top as usize] - self.v[center as usize];
-                    
-                    if self.particle_rest_density > 0.0 && compensate_drift == Some(true){
+                    let mut div: f32 = self.u[right as usize] - self.u[center as usize]
+                        + self.v[top as usize]
+                        - self.v[center as usize];
+
+                    if self.particle_rest_density > 0.0 && compensate_drift == Some(true) {
                         let k: f32 = 1.0;
-                        let compression = self.particle_density[(i*n + j) as usize] - self.particle_rest_density;
+                        let compression = self.particle_density[(i * n + j) as usize]
+                            - self.particle_rest_density;
                         if compression > 0.0 {
                             div = div - k * compression;
                         }
@@ -454,9 +483,10 @@ impl FlipFluid {
                     self.v[top as usize] += sy1 * p;
                 }
             }
-         }
+        }
     }
 }
+
 fn main() {
     println!("Hello, world!");
 }
