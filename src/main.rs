@@ -52,9 +52,6 @@ struct FlipFluid {
 }
 
 impl FlipFluid {
-    fn main() {
-        println!("Hello, world!");
-    }
     fn push_particles_apart(mut self, num_iters: i32){
         let colour_diffusion_coeff:f32 = 0.001;
         
@@ -63,10 +60,68 @@ impl FlipFluid {
         for i in  0..self.num_particles{
             let x: f32 = self.particle_pos[(2*i) as usize];
             let y: f32 = self.particle_pos[(2*i+1)as usize];
+            let xi = clamp(Math.floor(), , );
+        }
+    }
 
-            let xi = clamp(Math.floor())
+    fn new(
+        mut self,
+        density: i32,
+        width: i32,
+        height: i32,
+        spacing: i32,
+        particle_radius: i32,
+        max_particles: i32,
+    ) -> Self {
+        let f_num_x = (width / spacing) as f32;
+        let f_num_y = (height / spacing) as f32;
+        let f_num_cells = (f_num_x * f_num_y) as i32;
+        let f_inv_spacing = 1.0 / spacing as f32;
+
+        let p_num_x = (width / particle_radius) as f32;
+        let p_num_y = (height / particle_radius) as f32;
+        let p_num_cells = (p_num_x * p_num_y) as i32;
+        let p_inv_spacing = 1.0 / particle_radius as f32;
+
+        FlipFluid {
+            density,
+            f_num_x,
+            f_num_y,
+            h: spacing,
+            f_inv_spacing,
+            f_num_cells,
+            u: (),
+            v: (),
+            du: (),
+            dv: (),
+            prev_u: (),
+            prev_v: (),
+            p: (),
+            s: (),
+            cell_type: (),
+            cell_colour: (),
+            max_particles: (),
+            particle_pos: (),
+            particle_colour: (),
+            particle_vel: (),
+            particle_density: (),
+            particle_rest_density: (),
+            particle_radius: (),
+            p_inv_spacing: (),
+            p_num_x: (),
+            p_num_y: (),
+            p_num_cells: (),
+            num_cell_particles: (),
+            first_cell_particles: (),
+            cell_particle_ids: (),
+            num_particles: (),
         }
     }
 }
-//fuhdeh
+fn main() {
+    println!("Hello, world!");
+}
+
+
+
 
