@@ -386,6 +386,69 @@ impl FlipFluid {
             }
          }
     }
+    fn update_particle_colours(mut self){
+
+        let h1: f32 = self.f_inv_spacing;
+
+        for i in 0..self.num_particles{
+
+            let s:f32 = 0.01;
+
+            self.particle_colour[(3 * i) as usize] = (clamp(self.particle_colour[(3 * i) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 1) as usize] = (clamp(self.particle_colour[(3 * i + 1) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 2) as usize] = (clamp(self.particle_colour[(3 * i + 2) as usize] - s, 0.0, 1.0)) as f32;
+
+            let x: f32 = self.particle_pos[(2 * i) as usize];
+            let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+            let xi: i32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
+            let yi: i32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
+            let cell_nr: i32 = xi * self.f_num_y + yi;
+
+            let d0: f32 = self.particle_rest_density;
+
+            if d0 > 0.0 {
+                let rel_density: f32 = self.particle_density[(cell_nr) as usize] / d0;
+                if rel_density < 0.7 {
+                    let s: f32 = 0.8;
+                    self.particle_colour[(3 * i) as usize] = s;
+                    self.particle_colour[(3 * i + 1) as usize] = s;
+                    self.particle_colour[(3 * i + 2) as usize] = 1.0;
+                }
+            }
+        }
+    }
+
+    fn set_sci_colour(mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32){
+        
+        val = f32::min(f32::max(val, min_val), (max_val - 0.0001));
+        let d: f32 = max_val- min_val;
+        if d == 0.0{
+            val = 0.5;
+        }
+        else{
+            val = (val- min_val) / d;
+        }
+        let m: f32 = 0.25;
+        let num: f32 = (val/ m).floor();
+        let s: f32 = (val- num * m) / m;
+        let r: f32; 
+        let g: f32; 
+        let b: f32;
+
+        match num{
+
+            0.0 => {r = 0.0; g = s; b = 1.0;},
+            1.0 => {r = 0.0; g = 1.0; b = 1.0 - s;},
+            2.0 => {r = s; g = 1.0; b = 0.0},
+            3.0 => {r = 1.0; g = 1.0 - s; b = 0.0},
+            _ => {r = 0.0; g = 0.0; b = 0.0}
+        }
+        
+        self.cell_colour[(3 * cell_nr) as usize] = r;
+        self.cell_colour[(3 * cell_nr + 1) as usize] = g;
+        self.cell_colour[(3* cell_nr + 2) as usize] = b;
+    }
+
 }
 fn main() {
     println!("Hello, world!");
