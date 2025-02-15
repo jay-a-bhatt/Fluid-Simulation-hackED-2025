@@ -1,3 +1,5 @@
+use std::cmp;
+
 
 fn clamp(x: f32, min: f32, max: f32) -> i32{
     if(x < min){
@@ -51,47 +53,6 @@ struct FlipFluid {
 }
 
 impl FlipFluid {
-    fn push_particles_apart(mut self, num_iters: i32){
-        let colour_diffusion_coeff:f32 = 0.001;
-        
-        // count particles per cell
-
-        self.num_cell_particles.fill(0);
-        
-        for i in  0..self.num_particles{
-            let x: f32 = self.particle_pos[(2*i) as usize];
-            let y: f32 = self.particle_pos[(2*i+1)as usize];
-            let xi: i32 = clamp((x*self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
-            let yi: i32 = clamp((y*self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
-            let cell_nr: i32 = xi * self.p_num_y + yi;
-            self.num_cell_particles[(cell_nr) as usize]+=1;
-        }
-
-        //partial sums
-
-        let mut first: i32 = 0;
-
-        for i in 0..self.p_num_cells{
-            first += self.num_cell_particles[(i) as usize];
-            self.first_cell_particles[(i)as usize] = first;
-        }
-        self.first_cell_particles[(self.p_num_cells) as usize] = first;  //guard
-
-        // fill particles into cells
-
-        for i in 0..self.num_particles{
-            let x: f32 = self.particle_pos[(2*i) as usize];
-            let y: f32 = self.particle_pos[(2*i+1) as usize];
-
-            let xi: i32 = clamp((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
-            let yi: i32 = clamp((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
-            let cell_nr: i32 = xi* self.p_num_y + yi;
-            self.num_cell_particles[(cell_nr) as usize]-=1;
-            self.cell_particle_ids[(self.first_cell_particles[(cell_nr) as usize]) as usize] = i;
-        }
-
-        //push particles apart
-    }
 
     fn new(
         density: f32,
@@ -151,6 +112,74 @@ impl FlipFluid {
 
             num_particles: 0,
         }
+    }
+    
+    fn push_particles_apart(mut self, num_iters: i32){
+        let colour_diffusion_coeff:f32 = 0.001;
+        
+        // count particles per cell
+
+        self.num_cell_particles.fill(0);
+        
+        for i in  0..self.num_particles{
+            let x: f32 = self.particle_pos[(2*i) as usize];
+            let y: f32 = self.particle_pos[(2*i+1)as usize];
+            let xi: i32 = clamp((x*self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
+            let yi: i32 = clamp((y*self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
+            let cell_nr: i32 = xi * self.p_num_y + yi;
+            self.num_cell_particles[(cell_nr) as usize]+=1;
+        }
+
+        //partial sums
+
+        let mut first: i32 = 0;
+
+        for i in 0..self.p_num_cells{
+            first += self.num_cell_particles[(i) as usize];
+            self.first_cell_particles[(i)as usize] = first;
+        }
+        self.first_cell_particles[(self.p_num_cells) as usize] = first;  //guard
+
+        // fill particles into cells
+
+        for i in 0..self.num_particles{
+            let x: f32 = self.particle_pos[(2*i) as usize];
+            let y: f32 = self.particle_pos[(2*i+1) as usize];
+
+            let xi: i32 = clamp((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
+            let yi: i32 = clamp((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
+            let cell_nr: i32 = xi* self.p_num_y + yi;
+            self.num_cell_particles[(cell_nr) as usize]-=1;
+            self.cell_particle_ids[(self.first_cell_particles[(cell_nr) as usize]) as usize] = i;
+        }
+
+        //push particles apart
+
+        let min_dist: f32 = 2.0 * self.particle_radius;
+        let min_dist_2: f32 = min_dist * min_dist;
+
+        for iter in 0..num_iters{
+            for i in 0..self.num_particles{
+                let px: f32 = self.particle_pos[(2*i) as usize];
+                let py: f32 = self.particle_pos[(2*i+1) as usize];
+
+                let pxi: i32 = ((px * self.p_inv_spacing).floor()) as i32;
+                let pyi: i32 = ((py * self.p_inv_spacing).floor()) as i32;
+                let x0: i32 = cmp::max(pxi - 1, 0);
+                let y0: i32 = cmp::max(pyi - 1, 0);
+                let x1: i32 = cmp::min(pxi + 1, self.p_num_x - 1);
+                let y1: i32 = cmp::min(pyi + 1, self.p_num_y - 1);
+
+                for xi in x0..=x1{
+                    for yi in y0..=y1{
+                        let cell_nr: i32 = xi*self.p_num_y+yi;
+                        let first: i32 = self.first_cell_particles[(cell_nr) as usize];
+                        let last: i32 = self.first_cell_particles[(cell_nr + 1) as usize];
+                    }
+                }
+            }
+        }
+
     }
 }
 fn main() {
