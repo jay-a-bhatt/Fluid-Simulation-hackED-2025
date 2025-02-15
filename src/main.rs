@@ -1,3 +1,15 @@
+
+fn clamp(x: f32, min: f32, max: f32) -> i32{
+    if(x < min){
+        return (min) as i32;
+    }
+    else if(x>max){
+        return (max) as i32;
+    }
+    else{
+        return (x) as i32;
+    }
+}
 struct FlipFluid {
     density: f32,
     f_num_x: i32,
@@ -39,6 +51,48 @@ struct FlipFluid {
 }
 
 impl FlipFluid {
+    fn push_particles_apart(mut self, num_iters: i32){
+        let colour_diffusion_coeff:f32 = 0.001;
+        
+        // count particles per cell
+
+        self.num_cell_particles.fill(0);
+        
+        for i in  0..self.num_particles{
+            let x: f32 = self.particle_pos[(2*i) as usize];
+            let y: f32 = self.particle_pos[(2*i+1)as usize];
+            let xi: i32 = clamp((x*self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
+            let yi: i32 = clamp((y*self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
+            let cell_nr: i32 = xi * self.p_num_y + yi;
+            self.num_cell_particles[(cell_nr) as usize]+=1;
+        }
+
+        //partial sums
+
+        let mut first: i32 = 0;
+
+        for i in 0..self.p_num_cells{
+            first += self.num_cell_particles[(i) as usize];
+            self.first_cell_particles[(i)as usize] = first;
+        }
+        self.first_cell_particles[(self.p_num_cells) as usize] = first;  //guard
+
+        // fill particles into cells
+
+        for i in 0..self.num_particles{
+            let x: f32 = self.particle_pos[(2*i) as usize];
+            let y: f32 = self.particle_pos[(2*i+1) as usize];
+
+            let xi: i32 = clamp((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x-1) as f32);
+            let yi: i32 = clamp((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y-1) as f32);
+            let cell_nr: i32 = xi* self.p_num_y + yi;
+            self.num_cell_particles[(cell_nr) as usize]-=1;
+            self.cell_particle_ids[(self.first_cell_particles[(cell_nr) as usize]) as usize] = i;
+        }
+
+        //push particles apart
+    }
+
     fn new(
         density: f32,
         width: f32,
@@ -99,7 +153,10 @@ impl FlipFluid {
         }
     }
 }
-
 fn main() {
     println!("Hello, world!");
 }
+
+
+
+
