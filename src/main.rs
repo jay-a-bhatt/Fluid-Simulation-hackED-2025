@@ -176,7 +176,7 @@ impl FlipFluid {
         }
     }
 
-    fn integrate_particles(mut self, dt: f32, gravity: f32) {
+    fn integrate_particles(&mut self, dt: f32, gravity: f32) {
         for i in 0..self.num_particles {
             self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
             self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
@@ -185,7 +185,7 @@ impl FlipFluid {
     }
 
     fn handle_particle_collisions(
-        mut self,
+        &mut self,
         obstacle_x: f32,
         obstacle_y: f32,
         obstacle_radius: f32,
@@ -240,7 +240,7 @@ impl FlipFluid {
         }
     }
 
-    fn push_particles_apart(mut self, num_iters: i32) {
+    fn push_particles_apart(&mut self, num_iters: i32) {
         let colour_diffusion_coeff: f32 = 0.001;
 
         // count particles per cell
@@ -358,13 +358,13 @@ impl FlipFluid {
         }
     }
 
-    fn update_particle_density(mut self) {
+    fn update_particle_density(&mut self) {
         let n = self.f_num_y;
         let h = self.h;
         let h1 = self.f_inv_spacing;
         let h2 = self.h * 0.5;
 
-        let mut d = self.particle_density;
+        let mut d = self.particle_density.clone();
         d.fill(0.0);
 
         for i in 0..self.num_particles {
@@ -416,7 +416,7 @@ impl FlipFluid {
     }
 
     fn solve_incompressibility(
-        mut self,
+        &mut self,
         num_iters: i32,
         dt: f32,
         over_relaxation: f32,
@@ -486,7 +486,7 @@ impl FlipFluid {
         }
     }
 
-    fn update_cell_colours(mut self) {
+    fn update_cell_colours(&mut self) {
         self.cell_colour.fill(0.0);
 
         for i in 0..self.f_num_cells {
@@ -502,6 +502,39 @@ impl FlipFluid {
                 //self.set_sci_colour(i, d, 0.0, 2.0);
             }
         }
+    }
+
+    fn simulate(
+        &mut self,
+        dt: f32,
+        gravity: f32,
+        flip_ratio: f32,
+        num_pressure_iters: i32,
+        num_particle_iters: i32,
+        over_relaxation: f32,
+        compensate_drift: Option<bool>,
+        separate_particles: bool,
+        obstacle_x: f32,
+        obstacle_y: f32,
+        obstacle_radius: f32,
+    ) {
+        let num_sub_steps = 1;
+        let sdt = dt / num_sub_steps as f32;
+
+        for _ in 0..num_sub_steps {
+            self.integrate_particles(sdt, gravity);
+            if separate_particles {
+                self.push_particles_apart(num_particle_iters);
+            }
+            self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
+            //self.transfer_velocities(true);
+            self.update_particle_density();
+            self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
+            //self.transfer_velocities(false, flip_ratio);
+        }
+
+        //self.update_particle_colours();
+        self.update_cell_colours();
     }
 }
 
