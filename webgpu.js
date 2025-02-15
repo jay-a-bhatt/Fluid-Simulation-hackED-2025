@@ -57,6 +57,37 @@ function main(device, circleShaderSrc)
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
+    // Vertex Data
+    const numVertices = 4;
+    const vertexData = new Float32Array([
+        //  x     y
+        -0.5, -0.5,   0, 0,// BL
+        0.5, -0.5,   1, 0,// BR
+        0.5,  0.5,   1, 1,// TR
+        -0.5,  0.5,   0, 1 // TL
+    ]);
+
+    // 3--2       2
+    // | /       /|
+    // |/       / |
+    // 0       0--1
+    const indexData = new Uint32Array([0, 1, 2,   0, 2, 3]);
+
+    const vertexSize   = 4 * 4;
+    const instUnitSize = 4 * 4;
+
+    const vertexLayout = [
+        {arrayStride: vertexSize,   stepMode: 'vertex',   attributes: [ {shaderLocation: 0, offset: 0, format: 'float32x2'},
+                                                                        {shaderLocation: 2, offset: 8, format: 'float32x2'} ]}, // Per Vertex Position
+        {arrayStride: instUnitSize, stepMode: 'instance', attributes: [ {shaderLocation: 1, offset: 0, format: 'float32x4'} ]}  // Per Instance Color
+    ];
+
+    const vertexBufferSize = vertexData.byteLength;
+    const instBufferSize   = instUnitSize * 100;
+    const indexBufferSize  = indexData.byteLength;
+
+    console.log(vertexData)
+    console.log(indexData)
 }
 
 initWebGPU();
