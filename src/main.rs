@@ -101,6 +101,19 @@ impl FlipFluid {
             self.particle_pos[(2*i+1) as usize] += self.particle_vel[(2*i+1) as usize] * dt;
         }
     }
+
+    fn handle_particle_collisions(mut self, obstacle_x: f32, obstacle_y: f32, obstacle_radius: f32){
+        let h: f32 = 1.0 / self.f_inv_spacing;
+        let r: f32 = self.particle_radius as f32;
+        let or2: f32 = obstacle_radius * obstacle_radius;
+        let min_dist: f32 = obstacle_radius + r;
+        let min_dist2: f32 = min_dist * min_dist;
+        let min_x: f32 = h + r;
+        let min_y: f32 = h + r;
+        let max_x: f32 = (self.f_num_x - 1.0) * h - r;
+        let max_y: f32 = (self.f_num_y - 1.0) * h - r;
+    }
+
 }
 
 fn main() {
