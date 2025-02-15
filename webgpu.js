@@ -15,6 +15,40 @@ const rand = (min, max) => {
     return min + Math.random() * (max - min);
 };
 
+function initObjects(objArray, numObjects)
+{
+    for (let i = 0; i < numObjects; i++)
+    {
+        objArray.push(
+            {
+                color: new Float32Array([rand(), rand(), rand(), 1.0]),
+                position: new Float32Array([(rand()-0.5) * 2, (rand()-0.5) * 2]),
+                scale: new Float32Array([0.1, 0.1]),
+                velocity: [rand(-0.1, 0.1), rand(-0.1, 0.1)]
+            }
+        )
+    }
+}
+function updateObjects(objArray)
+{
+    for (const obj of objArray)
+    {
+        obj.position[0] += obj.velocity[0];
+    }
+}
+
+function updateInstanceValues(instanceValuesF32, objects)
+{
+    for (let i = 0; i < objects.length; i++)
+    {
+        const strideF32 = i * 8; // Stride
+        const object = objects[i];
+        instanceValuesF32.set([object.color[0], object.color[1], object.color[2], object.color[3]], strideF32 + 0);
+        instanceValuesF32.set([object.position[0], object.position[1]], strideF32 + 4);
+        instanceValuesF32.set([object.scale[0], object.scale[1]], strideF32 + 6);
+    }
+}
+
 async function initWebGPU()
 {
     if (!navigator.gpu)
@@ -46,6 +80,7 @@ async function initWebGPU()
     main(device, circleShaderSrc);
 }
 
+
 function main(device, circleShaderSrc)
 {
     const canvas = document.querySelector('canvas');
@@ -58,9 +93,13 @@ function main(device, circleShaderSrc)
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
     const maxObjects = 100;
+    const circleObjs = [];
 
+    initObjects(circleObjs, maxObjects);
+    console.log(circleObjs);
     // Vertex Data
     const numVertices = 4;
+    const numTris = 2;
     const vertexData = new Float32Array([
         //  x     y
         -0.5, -0.5,   0, 0, // BL
@@ -81,8 +120,8 @@ function main(device, circleShaderSrc)
     const vertexLayout = [
         {arrayStride: vertexSize,   stepMode: 'vertex',   attributes: [ {shaderLocation: 0, offset:  0, format: 'float32x2'},
                                                                         {shaderLocation: 2, offset:  8, format: 'float32x2'} ]}, // Per Vertex Position
-        {arrayStride: instUnitSize, stepMode: 'instance', attributes: [ {shaderLocation: 1, offset:  0, format: 'float32x4'},
-                                                                        {shaderLocation: 3, offset: 16, format: 'float32x2'},  // Per Instance Color
+        {arrayStride: instUnitSize, stepMode: 'instance', attributes: [ {shaderLocation: 1, offset:  0, format: 'float32x4'},   // Per Instance Color
+                                                                        {shaderLocation: 3, offset: 16, format: 'float32x2'},  // Per Instance Offset
                                                                         {shaderLocation: 4, offset: 24, format: 'float32x2'}]}  // Per Instance Scale
     ];
 
@@ -115,6 +154,8 @@ function main(device, circleShaderSrc)
 
     // HACK: need to swap this out with real buffer
     const instanceValuesF32 = new Float32Array(instBufferSize / 4);
+    updateInstanceValues(instanceValuesF32, circleObjs);
+    /*
     for (let i = 0; i < maxObjects; i++)
     {
         const strideF32 = i * 8; // Stride
@@ -122,6 +163,7 @@ function main(device, circleShaderSrc)
         instanceValuesF32.set([(rand()-0.5) * 2, (rand()-0.5) * 2], strideF32 + 4)
         instanceValuesF32.set([0.1,0.1], strideF32 + 6);
     }
+     */
     device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
 
     const circlePipeline = device.createRenderPipeline(
@@ -138,6 +180,13 @@ function main(device, circleShaderSrc)
     }
     function render()
     {
+        // Update Simulation State
+
+        updateObjects(circleObjs);
+        updateInstanceValues(instanceValuesF32, circleObjs);
+        device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
+
+        //
         // Set canvas as texture to render too.
         renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
         const encoder = device.createCommandEncoder({ label: 'epic encoder'});
@@ -156,7 +205,7 @@ function main(device, circleShaderSrc)
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
 
-        // todo: request animation frame loop
+        requestAnimationFrame(render);
     }
     render();
 
@@ -173,7 +222,6 @@ function main(device, circleShaderSrc)
             const canvas = entry.target;
             canvas.width  = Math.max(1, Math.min(width,  device.limits.maxTextureDimension2D));
             canvas.height = Math.max(1, Math.min(height, device.limits.maxTextureDimension2D));
-            render();
         }
     });
 
