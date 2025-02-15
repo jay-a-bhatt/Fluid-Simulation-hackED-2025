@@ -55,12 +55,25 @@ impl FlipFluid {
     fn push_particles_apart(mut self, num_iters: i32){
         let colour_diffusion_coeff:f32 = 0.001;
         
+        // count particles per cell
+
         self.num_cell_particles.fill(0);
         
         for i in  0..self.num_particles{
             let x: f32 = self.particle_pos[(2*i) as usize];
             let y: f32 = self.particle_pos[(2*i+1)as usize];
-            let xi = clamp(Math.floor(), , );
+            let xi: f32 = clamp((x*self.p_inv_spacing).floor(), 0.0, self.p_num_x-1.0);
+            let yi: f32 = clamp((y*self.p_inv_spacing).floor(), 0.0, self.p_num_y-1.0);
+            let cell_nr: i32 = (xi * self.p_num_y + yi) as i32;
+            self.num_cell_particles[(cell_nr) as usize]+1;
+        }
+
+        //partial sums
+
+        let first: i32 = 0;
+
+        for i in 0..self.p_num_cells{
+
         }
     }
 
