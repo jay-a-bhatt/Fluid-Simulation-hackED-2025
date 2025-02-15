@@ -1,6 +1,5 @@
 use std::cmp;
 
-
 fn clamp(x: f32, min: f32, max: f32) -> i32{
     if(x < min){
         return (min) as i32;
@@ -10,6 +9,69 @@ fn clamp(x: f32, min: f32, max: f32) -> i32{
     }
     else{
         return (x) as i32;
+    }
+}
+
+struct Scene {
+    gravity: f32,
+    dt: f32,
+    flip_ratio: f32,
+    num_pressure_iters: i32,
+    num_particle_iters: i32,
+    frame_nr: i32,
+    over_relaxation: f32,
+    compensate_drift: bool,
+    separate_particles: bool,
+    obstacle_x: f32,
+    obstacle_y: f32,
+    obstacle_radius: f32,
+    paused: bool,
+    show_obstacle: bool,
+    obstacle_vel_x: f32,
+    obstacle_vel_y: f32,
+    show_particles: bool,
+    show_grid: bool,
+    fluid: FlipFluid,
+}
+
+impl Scene {
+    fn new(
+        self,
+        density: f32,
+        width: f32,
+        height: f32,
+        spacing: f32,
+        particle_radius: f32,
+        max_particles: i32,
+    ) -> Self {
+        Scene {
+            gravity: -9.81,
+            dt: 1.0 / 120.0,
+            flip_ratio: 0.9,
+            num_pressure_iters: 100,
+            num_particle_iters: 2,
+            frame_nr: 0,
+            over_relaxation: 1.9,
+            compensate_drift: true,
+            separate_particles: true,
+            obstacle_x: 0.0,
+            obstacle_y: 0.0,
+            obstacle_radius: 0.15,
+            paused: true,
+            show_obstacle: true,
+            obstacle_vel_x: 0.0,
+            obstacle_vel_y: 0.0,
+            show_particles: true,
+            show_grid: false,
+            fluid: FlipFluid::new(
+                density,
+                width,
+                height,
+                spacing,
+                particle_radius,
+                max_particles,
+            ),
+        }
     }
 }
 struct FlipFluid {
@@ -114,6 +176,66 @@ impl FlipFluid {
         }
     }
 
+    fn integrate_particles(mut self, dt: f32 , gravity: f32){
+        for i in 0..self.num_particles{
+            self.particle_vel[(2*i+1) as usize] += dt * gravity;
+            self.particle_pos[(2*i) as usize] += self.particle_vel[(2*1 )as usize] * dt;
+            self.particle_pos[(2*i+1) as usize] += self.particle_vel[(2*i+1) as usize] * dt;
+        }
+    }
+
+    fn handle_particle_collisions(mut self, obstacle_x: f32, obstacle_y: f32, obstacle_radius: f32){
+        let h: f32 = 1.0 / self.f_inv_spacing;
+        let r: f32 = self.particle_radius as f32;
+        let or2: f32 = obstacle_radius * obstacle_radius;
+        let min_dist: f32 = obstacle_radius + r;
+        let min_dist2: f32 = min_dist * min_dist;
+        let min_x: f32 = h + r;
+        let min_y: f32 = h + r;
+        let max_x: f32 = (self.f_num_x - 1) as f32 * h - r;
+        let max_y: f32 = (self.f_num_y - 1) as f32 * h - r;
+
+        for i in 0..self.num_particles{
+            let mut x = self.particle_pos[(2*i) as usize];
+            let mut y: f32 = self.particle_pos[(2*i+1)as usize];
+            let dx: f32 = x - obstacle_x;
+            let dy: f32 = y - obstacle_y;
+            let d2: f32 = dx * dx + dy * dy;
+
+            //obstacle collision
+
+            if d2 < min_dist2{
+                self.particle_vel[(2*i)as usize] = 0.0;//scene.obstacle_vel_x
+                self.particle_vel[(2*i+1)as usize] = 0.0;//scene.obstacle_vel_y
+            }
+
+            //wall collisions
+
+            if x < min_x{
+                x = min_x;
+                self.particle_vel[(2*i)as usize] = 0.0;
+            }
+
+            if x > max_x{
+                x = max_x;
+                self.particle_vel[(2*i) as usize] = 0.0;
+            }
+
+            if y < min_y{
+                y = min_y;
+                self.particle_vel[(2*i+1)as usize] = 0.0;
+            }
+
+            if y > max_y{
+                y = max_y;
+                self.particle_vel[(2*i+1)as usize] = 0.0;
+            }
+            self.particle_pos[(2*i)as usize] = x;
+            self.particle_pos[(2*i+1)as usize] = y;
+        }
+    }
+
+    
     fn push_particles_apart(mut self, num_iters: i32){
         let colour_diffusion_coeff:f32 = 0.001;
         
@@ -213,7 +335,3 @@ impl FlipFluid {
 fn main() {
     println!("Hello, world!");
 }
-
-
-
-
