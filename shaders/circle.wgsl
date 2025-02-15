@@ -1,7 +1,8 @@
 struct vsOutput
 {
     @builtin(position) position: vec4f,
-    @location(0) color: vec4f
+    @location(0) color: vec4f,
+    @location(1) texCoord: vec2f
 };
 
 struct vert
@@ -14,15 +15,18 @@ struct vert
 @vertex
 fn vs(vertex: vert) -> vsOutput
 {
-
     var vsOut: vsOutput;
     vsOut.position = vec4f(vertex.vertexPos, 0.0, 1.0);
-    vsOut.color = vec4f(vertex.texCoord, 1, 1);
+    vsOut.color = vertex.color;
+    vsOut.texCoord = vertex.texCoord;
     return vsOut;
 }
 
 @fragment
 fn fs(fsInput : vsOutput) -> @location(0) vec4f
 {
-    return fsInput.color;
+    var uv = fsInput.texCoord;
+    uv -= 0.5;
+    uv *= 2;
+    return vec4f(uv, 0.0, 1.0);
 }
