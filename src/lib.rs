@@ -26,17 +26,19 @@ pub unsafe fn draw_circle(r: f32, g: f32, b: f32, a: f32, x: f32, y: f32, s_x: f
     {
         let index = instance_offset + i;
         WASM_MEMORY_BUFFER[index] = array[i];
-        println!("{}", i);
     }
+    current_instance += 1;
     if current_instance == 100
     {
         current_instance = 0;
     }
 }
 
-// provide js a pointer
+// RETURN BUFFER POINTER TO JS
 #[wasm_bindgen]
 pub fn return_pointer() -> *const f32 {
+
+    
   let p: *const f32;
   unsafe {
     p = WASM_MEMORY_BUFFER.as_ptr();
@@ -45,14 +47,18 @@ pub fn return_pointer() -> *const f32 {
   return p;
 }
 
+// "CONTEXT" STRUCT
+
+
+// UPDATE FUNCTION
 #[wasm_bindgen]
 pub fn update()
 {
     //
 }
 
-
+// MAIN FUNCTION
 fn main()
 {
-    unsafe{draw_circle(50.5, 100.1, 120.5, 200.0, 123.2, 54.3, 40.12, 43.54);}
+    // unsafe{draw_circle(50.5, 100.1, 120.5, 200.0, 123.2, 54.3, 40.12, 43.54);}
 }
