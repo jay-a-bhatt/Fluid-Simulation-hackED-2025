@@ -29,12 +29,12 @@ function ortho(left, right, bottom, top, near, far, mat)
 
     mat[8] = 0;
     mat[9] = 0;
-    mat[10] = 1 / (near - far);
+    mat[10] = -2 / (far - near);
     mat[11] = 0;
 
-    mat[12] = (right + left) / (left - right);
-    mat[13] = (top + bottom) / (bottom - top);
-    mat[14] = near / (near - far);
+    mat[12] = -(right + left) / (right - left);
+    mat[13] = -(top + bottom) / (top - bottom);
+    mat[14] = -(far + near) / (far - near);
     mat[15] = 1;
 }
 
@@ -45,7 +45,7 @@ function initObjects(objArray, numObjects)
         objArray.push(
             {
                 color: new Float32Array([rand(), rand(), rand(), 1.0]),
-                position: new Float32Array([0, 0]),
+                position: new Float32Array([-1 + 2*rand(),-1 + 2*rand()]),
                 scale: new Float32Array([0.1, 0.1]),
                 velocity: [rand(0.0, 0.0), rand(-0.1, 0.1)]
             }
@@ -220,8 +220,13 @@ function main(device, circleShaderSrc)
         updateObjects(circleObjs);
         updateInstanceValues(instanceValuesF32, circleObjs);
         device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
-        const aspect = canvas.height/canvas.width;
-        ortho(-(aspect/2), aspect/2, -(aspect/2), aspect/2, 200, -100, projectionMat);
+        const aspect = canvas.width/canvas.height;
+        const zoom = 3;
+        const l = (-aspect/2) * zoom;
+        const r = -l;
+        const t = zoom/2;
+        const b = -t;
+        ortho(l, r, b, t, 200, -100, projectionMat);
         device.queue.writeBuffer(uniformBuf, 0, projectionMat);
         //
         // Set canvas as texture to render too.
@@ -235,7 +240,7 @@ function main(device, circleShaderSrc)
         pass.setVertexBuffer(0, vertexBuf);
         pass.setVertexBuffer(1, instBuf);
         pass.setIndexBuffer(indexBuf, 'uint32');
-        pass.drawIndexed(6, 1);
+        pass.drawIndexed(6, maxObjects);
 
         pass.end();
         const commandBuffer = encoder.finish();

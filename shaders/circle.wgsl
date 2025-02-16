@@ -30,6 +30,7 @@ fn vs(vertex: vert) -> vsOutput
         0.0, 0.0, 1.0, 0.0,
         vertex.worldPos.x, vertex.worldPos.y, 0.0, 1.0
     );
+
     var proj = uniforms.proj;
     var vsOut: vsOutput;
     var mp = proj * model;
