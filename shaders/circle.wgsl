@@ -52,6 +52,10 @@ fn fs(fsInput : vsOutput) -> @location(0) vec4f
     {
         distance = 1.0;
     }
+    else
+    {
+        discard;
+    }
     var color = vec3f(distance) * fsInput.color.xyz;
     return vec4f(color, 0.0);
 }
