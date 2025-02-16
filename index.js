@@ -209,6 +209,23 @@ function main(device, simModule, circleShaderSrc)
     catch { observer.observe(canvas, {box: 'content-box'}) }
 }
 
+// returning mouse x, y positions
+function mouse_position_x()
+{
+    window.addEventListener('mousemove', function (e)
+    {
+        return e.x;
+    });
+}
+
+function mouse_position_y()
+{
+    window.addEventListener('mousemove', function (e)
+    {
+        return e.x;
+    });
+}
+
 const initWasm = async () =>
 {
     // Load Wasm module so we can call Rust functions.

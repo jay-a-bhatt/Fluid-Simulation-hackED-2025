@@ -123,9 +123,6 @@ pub fn init_simulation()
     }
 }
 
-// "CONTEXT" STRUCT
-
-
 // UPDATE FUNCTION
 #[wasm_bindgen]
 pub fn update(delta_time: f32)
@@ -140,4 +137,24 @@ pub fn update(delta_time: f32)
 
     // Update simulation
     // Draw particles
+}
+
+struct context
+{
+    canvas_x: i32,
+    canvas_y: i32,
+    mouse_x: i32,
+    mouse_y: i32
+}
+
+fn init_context(canvas_x: i32, canvas_y: i32, mouse_x: i32, mouse_y: i32) -> context
+{
+    context
+    {
+        canvas_x,
+        canvas_y,
+        mouse_x,
+        mouse_y
+    }
+
 }
