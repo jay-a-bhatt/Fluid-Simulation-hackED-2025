@@ -499,7 +499,7 @@ impl FlipFluid {
                 if self.particle_rest_density > 0.0 {
                     d /= self.particle_rest_density;
                 }
-                //self.set_sci_colour(i, d, 0.0, 2.0);
+                self.set_sci_colour(i, d, 0.0, 2.0);
             }
         }
     }
@@ -537,7 +537,7 @@ impl FlipFluid {
         }
     }
 
-    fn set_sci_colour(mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32) {
+    fn set_sci_colour(&mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32) {
         val = f32::min(f32::max(val, min_val), (max_val - 0.0001));
         let d: f32 = max_val - min_val;
         if d == 0.0 {
