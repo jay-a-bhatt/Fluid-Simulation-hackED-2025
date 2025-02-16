@@ -124,7 +124,7 @@ function main(device, simModule, circleShaderSrc)
         instanceValuesF32.set([(rand()-0.5) * 2, (rand()-0.5) * 2], strideF32 + 4)
         instanceValuesF32.set([0.1,0.1], strideF32 + 6);
     }
-     */
+    */
     device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
 
     const circlePipeline = device.createRenderPipeline(
@@ -207,23 +207,20 @@ function main(device, simModule, circleShaderSrc)
 
     try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
     catch { observer.observe(canvas, {box: 'content-box'}) }
-}
+    
+    // init variables for canvas dimensions, mouse coordinates/status,, (EventListener updates these constantly)
+    let canvas_width = canvas.width, canvas_height = canvas.height; // init canvas var's
+    let mouse_x, mouse_y, mouse_down = 0; // init mouse var's - mouse_down: 0 - false | 1 - true
 
-// returning mouse x, y positions
-function mouse_position_x()
-{
-    window.addEventListener('mousemove', function (e)
+    // mouse click
+    window.addEventListener('mousedown', function(aaa){mouse_down = 1;});
+    window.addEventListener('mouseup', function(aaa){mouse_down = 0;});
+    window.addEventListener('mousemove', function (event)
     {
-        return e.x;
+        mouse_x = event.clientX; mouse_y = event.clientY;
+        console.log(canvas.width, canvas.height, mouse_x, mouse_y, mouse_down);
     });
-}
-
-function mouse_position_y()
-{
-    window.addEventListener('mousemove', function (e)
-    {
-        return e.x;
-    });
+    console.log(canvas.width, canvas.height, mouse_x, mouse_y, mouse_down);
 }
 
 const initWasm = async () =>
