@@ -300,7 +300,7 @@ impl FlipFluid {
         let min_dist: f32 = 2.0 * self.particle_radius;
         let min_dist_2: f32 = min_dist * min_dist;
 
-        for iter in 0..num_iters {
+        for _ in 0..num_iters {
             for i in 0..self.num_particles {
                 let px: f32 = self.particle_pos[(2 * i) as usize];
                 let py: f32 = self.particle_pos[(2 * i + 1) as usize];
@@ -358,13 +358,13 @@ impl FlipFluid {
         }
     }
 
-    fn transfer_velocities(mut self, to_grid: bool, flip_ratio: f32) {
+    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: Option<f32>) {
         let n: f32 = self.f_num_y as f32;
         let h: f32 = self.h;
         let h1: f32 = self.f_inv_spacing;
         let h2: f32 = h * 0.5;
 
-        if (to_grid) {
+        if to_grid {
             self.prev_u = self.u.clone(); //Using .clone() so might use more memory
             self.prev_v = self.v.clone();
 
@@ -395,11 +395,11 @@ impl FlipFluid {
         }
 
         for component in 0..2 {
-            let mut dx: f32;
-            let mut dy: f32;
+            let dx: f32;
+            let dy: f32;
 
             let mut f: Vec<f32>;
-            let mut prev_f: Vec<f32>;
+            let prev_f: Vec<f32>;
             let mut d: Vec<f32>;
 
             if component == 0 {
@@ -429,7 +429,7 @@ impl FlipFluid {
 
                 let x0: f32 = f32::min(((x - dx) * h1).floor(), self.f_num_x as f32 - 2.0);
                 let tx: f32 = ((x - dx) - x0 * h) * h1;
-                let x1: f32 = f32::min((x0 + 1.0), self.f_num_x as f32 - 2.0);
+                let x1: f32 = f32::min(x0 + 1.0, self.f_num_x as f32 - 2.0);
 
                 let y0: f32 = f32::min(((y - dy) * h1).floor(), self.f_num_y as f32 - 2.0);
                 let ty: f32 = ((y - dy) - y0 * h) * h1;
@@ -467,23 +467,23 @@ impl FlipFluid {
                     if component == 0 {
                         offset = n;
                     }
-                    if (self.cell_type[nr0 as usize] != var::AIR_CELL
-                        || self.cell_type[nr0 as usize - offset as usize] != var::AIR_CELL)
+                    if self.cell_type[nr0 as usize] != var::AIR_CELL
+                        || self.cell_type[nr0 as usize - offset as usize] != var::AIR_CELL
                     {
                         valid0 = 1.0;
                     }
-                    if (self.cell_type[nr1 as usize] != var::AIR_CELL
-                        || self.cell_type[nr1 as usize - offset as usize] != var::AIR_CELL)
+                    if self.cell_type[nr1 as usize] != var::AIR_CELL
+                        || self.cell_type[nr1 as usize - offset as usize] != var::AIR_CELL
                     {
                         valid1 = 1.0;
                     }
-                    if (self.cell_type[nr2 as usize] != var::AIR_CELL
-                        || self.cell_type[nr2 as usize - offset as usize] != var::AIR_CELL)
+                    if self.cell_type[nr2 as usize] != var::AIR_CELL
+                        || self.cell_type[nr2 as usize - offset as usize] != var::AIR_CELL
                     {
                         valid2 = 1.0;
                     }
-                    if (self.cell_type[nr3 as usize] != var::AIR_CELL
-                        || self.cell_type[nr3 as usize - offset as usize] != var::AIR_CELL)
+                    if self.cell_type[nr3 as usize] != var::AIR_CELL
+                        || self.cell_type[nr3 as usize - offset as usize] != var::AIR_CELL
                     {
                         valid3 = 1.0;
                     }
@@ -507,8 +507,18 @@ impl FlipFluid {
                             / d;
                         let flip_v: f32 = v + corr;
 
-                        self.particle_vel[(2 * i + component) as usize] =
-                            (1.0 - flip_ratio) * pic_v + flip_ratio * flip_v;
+                        if let Some(ratio) = flip_ratio {
+                            self.particle_vel[(2 * i + component) as usize] =
+                                (1.0 - ratio) * pic_v + ratio * flip_v;
+                        }
+
+                        // IDK how to implement Option<f32> properly, I tried my best above - Jay
+                        //
+                        // self.particle_vel[(2 * i + component) as usize] = match flip_ratio {
+                        //     Some(ratio) => (1.0 - ratio) * pic_v + ratio * flip_v,
+                        //     None => {}
+                        // }
+                        //(1.0 - flip_ratio) * pic_v + flip_ratio * flip_v;
                     }
                 }
             }
@@ -546,6 +556,7 @@ impl FlipFluid {
             }
         }
     }
+
     fn update_particle_density(&mut self) {
         let n = self.f_num_y;
         let h = self.h;
@@ -560,7 +571,7 @@ impl FlipFluid {
             let mut y = self.particle_pos[(2 * i + 1) as usize];
 
             x = clamp(x, h, (self.f_num_x as f32 - 1.0) * h) as f32;
-            y = clamp(x, h, (self.f_num_y as f32 - 1.0) * h) as f32;
+            y = clamp(y, h, (self.f_num_y as f32 - 1.0) * h) as f32;
 
             let x0 = ((x - h2) * h1).floor();
             let tx = ((x - h2) - x0 * h) * h1;
@@ -796,10 +807,10 @@ impl FlipFluid {
                 self.push_particles_apart(num_particle_iters);
             }
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
-            //self.transfer_velocities(true);
+            self.transfer_velocities(true, None);
             self.update_particle_density();
             self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
-            //self.transfer_velocities(false, flip_ratio);
+            self.transfer_velocities(false, Some(flip_ratio));
         }
 
         self.update_particle_colours();

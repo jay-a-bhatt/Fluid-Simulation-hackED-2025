@@ -2,6 +2,8 @@ extern crate wasm_bindgen;
 use rand::{Rng, RngCore};
 use std::path::Component::ParentDir;
 use wasm_bindgen::prelude::*;
+const WASM_MEMORY_BUFFER_SIZE: usize = 8;
+static mut WASM_MEMORY_BUFFER: [f32; WASM_MEMORY_BUFFER_SIZE] = [0.0; INSTANCE_DATA_SIZE];
 
 // BOUNCY BALL SIMULATOR!!!!
 
@@ -38,6 +40,32 @@ pub fn get_instance_buffer_ptr() -> *const f32 {
     {
         p = INSTANCE_GFX_BUFFER.as_ptr();
     }
+}
+const INSTANCE_DATA_SIZE: usize = 4 + 2 + 2; //4+2+2
+const max_instances: u32 = 100;
+static mut current_instance: usize = 0; // increments 0 - 799 = 800x before being reset
+
+pub unsafe fn draw_circle(r: f32, g: f32, b: f32, a: f32, x: f32, y: f32, s_x: f32, s_y: f32) {
+    let mut array: [f32; 8] = [r, g, b, a, x, y, s_x, s_y];
+    let instance_offset: usize = current_instance * 8; // instance offset corresponds to total # of floats in the buffer
+    for i in 0..8 {
+        let index = instance_offset + i;
+        WASM_MEMORY_BUFFER[index] = array[i];
+        println!("{}", i);
+    }
+    if current_instance == 100 {
+        current_instance = 0;
+    }
+}
+
+// provide js a pointer
+#[wasm_bindgen]
+pub fn return_pointer() -> *const f32 {
+    let p: *const f32;
+    unsafe {
+        p = WASM_MEMORY_BUFFER.as_ptr();
+    }
+
     return p;
 }
 // END OF GFX. THAT'S LITERALLY IT. -----------------------------------------------------------------------------
