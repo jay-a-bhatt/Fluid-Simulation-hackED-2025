@@ -30,6 +30,7 @@ fn vs(vertex: vert) -> vsOutput
         0.0, 0.0, 1.0, 0.0,
         vertex.worldPos.x, vertex.worldPos.y, 0.0, 1.0
     );
+
     var proj = uniforms.proj;
     var vsOut: vsOutput;
     var mp = proj * model;
@@ -50,6 +51,10 @@ fn fs(fsInput : vsOutput) -> @location(0) vec4f
     if (distance > 0.0)
     {
         distance = 1.0;
+    }
+    else
+    {
+        discard;
     }
     var color = vec3f(distance) * fsInput.color.xyz;
     return vec4f(color, 0.0);
