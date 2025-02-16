@@ -126,8 +126,10 @@ pub fn init_simulation()
 
 // UPDATE FUNCTION
 #[wasm_bindgen]
-pub fn update(delta_time: f32)
+pub fn update(delta_time: f32, mut sim: SimWASM)
 {
+    sim.step();
+
     unsafe
     {
         CURRENT_INSTANCE = 0;
@@ -136,8 +138,6 @@ pub fn update(delta_time: f32)
         SIM.draw_balls();
     }
 
-    // Update simulation
-    // Draw particles
 }
 
 struct context
