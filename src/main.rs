@@ -358,7 +358,7 @@ impl FlipFluid {
         }
     }
 
-    fn transfer_velocities(mut self, to_grid: bool, flip_ratio: Option<f32>) {
+    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: Option<f32>) {
         let n: f32 = self.f_num_y as f32;
         let h: f32 = self.h;
         let h1: f32 = self.f_inv_spacing;
@@ -807,10 +807,10 @@ impl FlipFluid {
                 self.push_particles_apart(num_particle_iters);
             }
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
-            //self.transfer_velocities(true);
+            self.transfer_velocities(true, None);
             self.update_particle_density();
             self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
-            //self.transfer_velocities(false, flip_ratio);
+            self.transfer_velocities(false, Some(flip_ratio));
         }
 
         self.update_particle_colours();
