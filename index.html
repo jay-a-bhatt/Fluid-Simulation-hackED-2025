@@ -1,16 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Fluid Simulation HackED</title>
-    <script type="module" src="./index.js"></script>
-    <style>
-      html, body { margin: 0; height: 100vh; }
-      canvas { display: block; width: 100%; height: 100%; }
-    </style>
-  </head>
-  <body>
-      <canvas></canvas>
-      <h1>Hello HTML</h1>
-  </body>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Fluid Simulation HackED</title>
+  <script type="module" src="./index.js"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100vh;
+    }
+
+    canvas {
+      z-index: -1;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .text {
+      overflow: hidden;
+      text-overflow: elipsis;
+      white-space: nowrap;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 12px;
+      font-family: "Lato", sans-serif;
+      font-size: 20px;
+      color: #f1f1f1;
+    }
+
+    .slider_div {
+      width: 100%;
+      display: flex;
+    }
+
+    #grav {
+      width: 102px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 34px;
+      width: auto;
+      outline: none;
+      background: #ccc;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .panel {
+      width: 0px;
+      justify-content: center;
+      align-items: center;
+      position: fixed;
+      z-index: 1;
+      height: auto;
+      top: 0;
+      left: 0;
+      background-color: #111;
+      overflow-x: hidden;
+      transition: 0.4s;
+      padding-top: 60px;
+    }
+
+    .panel .close {
+      position: absolute;
+      top: 0;
+      right: 25px;
+      font-family: "Lato", sans-serif;
+      font-size: 40px;
+      color: #f1f1f1;
+      text-decoration: none;
+    }
+
+    .open {
+      font-family: "Lato", sans-serif;
+      font-size: 40px;
+      color: #f1f1f1;
+      cursor: pointer;
+      background-color: #111;
+      border: none;
+      padding: 10px 15px;
+    }
+
+    .container {
+      overflow: hidden;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      padding: 8px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .rect {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      -webkit-transition: 0.4s;
+      transition: 0.4s;
+    }
+
+    .rect:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      -webkit-transition: 0.4s;
+      transition: 0.4s;
+    }
+
+    input:checked+.rect {
+      background-color: #2196f3;
+    }
+
+    input:checked+.rect:before {
+      -webkit-transform: translateX(26px);
+      -ms-transform: translateX(26px);
+      transform: translateX(26px);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="panelID" class="panel">
+    <a href="javascript:void(0)" class="close" onclick="close_nav()">x</a>
+    <div id="1" class="container">
+      <div class="button">
+        <label class="switch">
+          <input type="checkbox">
+          <span class="rect"></span>
+        </label>
+      </div>
+      <div class="text">Particles</div>
+    </div>
+    <div id="2" class="container">
+      <div class="button">
+        <label class="switch">
+          <input type="checkbox">
+          <span class="rect"></span>
+        </label>
+      </div>
+      <div class="text">Grid</div>
+    </div>
+    <div id="3" class="container">
+      <div class="button">
+        <label class="switch">
+          <input type="checkbox">
+          <span class="rect"></span>
+        </label>
+      </div>
+      <div class="text">Compensate Drift</div>
+    </div>
+    <div id="4" class="container">
+      <div class="button">
+        <label class="switch">
+          <input type="checkbox">
+          <span class="rect"></span>
+        </label>
+      </div>
+      <div class="text">Separate Particles</div>
+    </div>
+    <div class="slider_div">
+      <div class="text">PIC</div>
+      <input type="range" min="0" max="10" value="9" class="slider" id="slider1">
+      <div class="text">FLIP</div>
+    </div>
+    <div class="slider_div">
+      <div class="text" style="font-size:18px;">Gravity</div>
+      <input type="range" min="-25" max="0" value="-9.81" class="slider" id="slider2" step="0.01">
+      <div class="text" id="grav"></div>
+    </div>
+  </div>
+  <button class="open" onclick="open_nav()">☰ Options</b>
+    <script>
+      var slider2 = document.getElementById("slider2");
+      var slider1 = document.getElementById("slider1");
+      var output2 = document.getElementById("grav");
+
+      output2.innerHTML = slider2.value;
+
+      slider2.oninput = function () {
+        output2.innerHTML = this.value;
+      }
+
+      function open_nav() {
+        document.getElementById("panelID").style.width = "275px";
+      }
+
+      function close_nav() {
+        document.getElementById("panelID").style.width = "0px";
+      }
+    </script>
+    <canvas></canvas>
+</body>
+
 </html>
