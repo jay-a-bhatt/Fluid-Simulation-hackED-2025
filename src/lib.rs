@@ -3,7 +3,7 @@ use rand::{Rng, RngCore};
 use std::path::Component::ParentDir;
 use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
-
+use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
 const MAX_INSTANCES: usize = 100;
 // NUMBER OF FLOATS PER INSTANCE
@@ -158,4 +158,49 @@ fn init_context(canvas_x: i32, canvas_y: i32, mouse_x: i32, mouse_y: i32) -> con
         mouse_y
     }
 
+}
+
+#[wasm_bindgen]
+pub struct SimWASM {
+    scene: lib_fluid::Scene,
+}
+
+#[wasm_bindgen]
+impl SimWASM {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        density: f32,
+        width: f32,
+        height: f32,
+        spacing: f32,
+        particle_radius: f32,
+        max_particles: i32,
+    ) -> Self {
+        let scene = lib_fluid::Scene::new(
+            density,
+            width,
+            height,
+            spacing,
+            particle_radius,
+            max_particles,
+        );
+        SimWASM { scene }
+    }
+
+    #[wasm_bindgen]
+    pub fn step(&mut self) {
+        self.scene.fluid.simulate(
+            self.scene.dt,
+            self.scene.gravity,
+            self.scene.flip_ratio,
+            self.scene.num_pressure_iters,
+            self.scene.num_particle_iters,
+            self.scene.over_relaxation,
+            Some(self.scene.compensate_drift),
+            self.scene.separate_particles,
+            self.scene.obstacle_x,
+            self.scene.obstacle_y,
+            self.scene.obstacle_radius,
+        );
+    }
 }

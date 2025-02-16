@@ -7,7 +7,7 @@ name = "Fluid-Simulation-hackED-2025"
 version = "0.1.0"
 dependencies = [
  "getrandom",
- "libm",
+ "lib-fluid",
  "rand",
  "wasm-bindgen",
 ]
@@ -51,6 +51,13 @@ checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "lib-fluid"
+version = "0.1.0"
+dependencies = [
+ "libm",
 ]
 
 [[package]]
