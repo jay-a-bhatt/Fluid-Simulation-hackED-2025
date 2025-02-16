@@ -1,5 +1,8 @@
 use std::{cell, cmp};
 
+use var::{FLUID_CELL, SOLID_CELL};
+mod var;
+
 fn clamp(x: f32, min: f32, max: f32) -> i32 {
     if (x < min) {
         return (min) as i32;
@@ -173,7 +176,7 @@ impl FlipFluid {
         }
     }
 
-    fn integrate_particles(mut self, dt: f32, gravity: f32) {
+    fn integrate_particles(&mut self, dt: f32, gravity: f32) {
         for i in 0..self.num_particles {
             self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
             self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
@@ -182,7 +185,7 @@ impl FlipFluid {
     }
 
     fn handle_particle_collisions(
-        mut self,
+        &mut self,
         obstacle_x: f32,
         obstacle_y: f32,
         obstacle_radius: f32,
@@ -237,7 +240,7 @@ impl FlipFluid {
         }
     }
 
-    fn push_particles_apart(mut self, num_iters: i32) {
+    fn push_particles_apart(&mut self, num_iters: i32) {
         let colour_diffusion_coeff: f32 = 0.001;
 
         // count particles per cell
@@ -502,11 +505,267 @@ impl FlipFluid {
                             self.v[(i as f32 * n + j as f32) as usize] = self.prev_v[(i as f32 * n + j as f32) as usize];
                         }
                     }
+    fn update_particle_density(&mut self) {
+        let n = self.f_num_y;
+        let h = self.h;
+        let h1 = self.f_inv_spacing;
+        let h2 = self.h * 0.5;
+
+        let mut d = self.particle_density.clone();
+        d.fill(0.0);
+
+        for i in 0..self.num_particles {
+            let mut x = self.particle_pos[(2 * i) as usize];
+            let mut y = self.particle_pos[(2 * i + 1) as usize];
+
+            x = clamp(x, h, (self.f_num_x as f32 - 1.0) * h) as f32;
+            y = clamp(x, h, (self.f_num_y as f32 - 1.0) * h) as f32;
+
+            let x0 = ((x - h2) * h1).floor();
+            let tx = ((x - h2) - x0 * h) * h1;
+            let x1 = f32::min(x0 + 1.0, (self.f_num_x - 2) as f32);
+
+            let y0 = ((y - h2) * h1).floor();
+            let ty = ((y - h2) - y0 * h) * h1;
+            let y1 = f32::min(y0 + 1.0, self.f_num_y as f32 - 2.0);
+
+            let sx = 1.0 - tx;
+            let sy = 1.0 - ty;
+
+            if x0 < self.f_num_x as f32 && y0 < self.f_num_y as f32 {
+                d[(x0 as usize) * (n as usize) + (y0 as usize)] += sx * sy;
+            }
+            if x1 < self.f_num_x as f32 && y0 < self.f_num_y as f32 {
+                d[(x1 as usize) * (n as usize) + (y0 as usize)] += tx * sy;
+            }
+            if x1 < self.f_num_x as f32 && y1 < self.f_num_y as f32 {
+                d[(x1 as usize) * (n as usize) + (y1 as usize)] += tx * ty;
+            }
+            if x0 < self.f_num_x as f32 && y1 < self.f_num_y as f32 {
+                d[(x0 as usize) * (n as usize) + (y1 as usize)] += sx * ty;
+            }
+        }
+
+        if self.particle_rest_density == 0.0 {
+            let mut sum = 0.0;
+            let num_fluid_cells = 0;
+
+            for i in 0..self.f_num_cells {
+                if self.cell_type[i as usize] == FLUID_CELL {
+                    sum += d[i as usize];
+                }
+            }
+
+            if num_fluid_cells > 0 {
+                self.particle_rest_density = sum / num_fluid_cells as f32;
+            }
+        }
+    }
+
+    fn solve_incompressibility(
+        &mut self,
+        num_iters: i32,
+        dt: f32,
+        over_relaxation: f32,
+        mut compensate_drift: Option<bool>,
+    ) {
+        if compensate_drift == None {
+            compensate_drift = Some(true);
+        }
+        self.p.fill(0.0);
+        self.prev_u = self.u.clone(); // clone() might use more memory
+        self.prev_v = self.v.clone();
+
+        let n: i32 = self.f_num_y;
+        let cp: f32 = self.density * self.h / dt;
+
+        for i in 0..self.f_num_cells {
+            let u: f32 = self.u[i as usize];
+            let v: f32 = self.v[i as usize];
+        }
+
+        for _ in 0..num_iters {
+            for i in 1..self.f_num_x - 1 {
+                for j in 1..self.f_num_y - 1 {
+                    if self.cell_type[((i * n) + j) as usize] != var::FLUID_CELL {
+                        continue;
+                    }
+
+                    let center: i32 = i * n + j;
+                    let left: i32 = (i - 1) * n + j;
+                    let right: i32 = (i + 1) * n + j;
+                    let bottom: i32 = i * n + j - 1;
+                    let top: i32 = i * n + j + 1;
+
+                    let s: f32 = self.s[center as usize];
+                    let sx0: f32 = self.s[left as usize];
+                    let sx1: f32 = self.s[right as usize];
+                    let sy0: f32 = self.s[bottom as usize];
+                    let sy1: f32 = self.s[top as usize];
+                    let s: f32 = sx0 + sx1 + sy0 + sy1;
+                    if s == 0.0 {
+                        continue;
+                    }
+
+                    let mut div: f32 = self.u[right as usize] - self.u[center as usize]
+                        + self.v[top as usize]
+                        - self.v[center as usize];
+
+                    if self.particle_rest_density > 0.0 && compensate_drift == Some(true) {
+                        let k: f32 = 1.0;
+                        let compression = self.particle_density[(i * n + j) as usize]
+                            - self.particle_rest_density;
+                        if compression > 0.0 {
+                            div = div - k * compression;
+                        }
+                    }
+
+                    let mut p: f32 = -div / s;
+                    p *= over_relaxation;
+                    self.p[center as usize] += cp * p;
+
+                    self.u[center as usize] -= sx0 * p;
+                    self.u[right as usize] += sx1 * p;
+                    self.v[center as usize] -= sy0 * p;
+                    self.v[top as usize] += sy1 * p;
                 }
             }
         }
     }
+
+    fn update_cell_colours(&mut self) {
+        self.cell_colour.fill(0.0);
+
+        for i in 0..self.f_num_cells {
+            if self.cell_type[i as usize] == SOLID_CELL {
+                self.cell_colour[3 * i as usize] = 0.5;
+                self.cell_colour[3 * i as usize + 1] = 0.5;
+                self.cell_colour[3 * i as usize + 2] = 0.5;
+            } else if self.cell_type[i as usize] == FLUID_CELL {
+                let mut d = self.particle_density[i as usize];
+                if self.particle_rest_density > 0.0 {
+                    d /= self.particle_rest_density;
+                }
+                //self.set_sci_colour(i, d, 0.0, 2.0);
+            }
+        }
+    }
+
+    fn update_particle_colours(&mut self) {
+        let h1: f32 = self.f_inv_spacing;
+
+        for i in 0..self.num_particles {
+            let s: f32 = 0.01;
+
+            self.particle_colour[(3 * i) as usize] =
+                (clamp(self.particle_colour[(3 * i) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 1) as usize] =
+                (clamp(self.particle_colour[(3 * i + 1) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[(3 * i + 2) as usize] =
+                (clamp(self.particle_colour[(3 * i + 2) as usize] - s, 0.0, 1.0)) as f32;
+
+            let x: f32 = self.particle_pos[(2 * i) as usize];
+            let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+            let xi: i32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
+            let yi: i32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
+            let cell_nr: i32 = xi * self.f_num_y + yi;
+
+            let d0: f32 = self.particle_rest_density;
+
+            if d0 > 0.0 {
+                let rel_density: f32 = self.particle_density[(cell_nr) as usize] / d0;
+                if rel_density < 0.7 {
+                    let s: f32 = 0.8;
+                    self.particle_colour[(3 * i) as usize] = s;
+                    self.particle_colour[(3 * i + 1) as usize] = s;
+                    self.particle_colour[(3 * i + 2) as usize] = 1.0;
+                }
+            }
+        }
+    }
+
+    fn set_sci_colour(mut self, cell_nr: i32, mut val: f32, min_val: f32, max_val: f32) {
+        val = f32::min(f32::max(val, min_val), (max_val - 0.0001));
+        let d: f32 = max_val - min_val;
+        if d == 0.0 {
+            val = 0.5;
+        } else {
+            val = (val - min_val) / d;
+        }
+        let m: f32 = 0.25;
+        let num: f32 = (val / m).floor();
+        let s: f32 = (val - num * m) / m;
+        let r: f32;
+        let g: f32;
+        let b: f32;
+
+        match num {
+            0.0 => {
+                r = 0.0;
+                g = s;
+                b = 1.0;
+            }
+            1.0 => {
+                r = 0.0;
+                g = 1.0;
+                b = 1.0 - s;
+            }
+            2.0 => {
+                r = s;
+                g = 1.0;
+                b = 0.0
+            }
+            3.0 => {
+                r = 1.0;
+                g = 1.0 - s;
+                b = 0.0
+            }
+            _ => {
+                r = 0.0;
+                g = 0.0;
+                b = 0.0
+            }
+        }
+
+        self.cell_colour[(3 * cell_nr) as usize] = r;
+        self.cell_colour[(3 * cell_nr + 1) as usize] = g;
+        self.cell_colour[(3 * cell_nr + 2) as usize] = b;
+    }
+
+    fn simulate(
+        &mut self,
+        dt: f32,
+        gravity: f32,
+        flip_ratio: f32,
+        num_pressure_iters: i32,
+        num_particle_iters: i32,
+        over_relaxation: f32,
+        compensate_drift: Option<bool>,
+        separate_particles: bool,
+        obstacle_x: f32,
+        obstacle_y: f32,
+        obstacle_radius: f32,
+    ) {
+        let num_sub_steps = 1;
+        let sdt = dt / num_sub_steps as f32;
+
+        for _ in 0..num_sub_steps {
+            self.integrate_particles(sdt, gravity);
+            if separate_particles {
+                self.push_particles_apart(num_particle_iters);
+            }
+            self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
+            //self.transfer_velocities(true);
+            self.update_particle_density();
+            self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
+            //self.transfer_velocities(false, flip_ratio);
+        }
+
+        self.update_particle_colours();
+        self.update_cell_colours();
+    }
 }
+
 fn main() {
     println!("Hello, world!");
 }
