@@ -15,6 +15,29 @@ const rand = (min, max) => {
     return min + Math.random() * (max - min);
 };
 
+function ortho(left, right, bottom, top, near, far, mat)
+{
+    mat[0] = 2 / (right - left);
+    mat[1] = 0;
+    mat[2] = 0;
+    mat[3] = 0;
+
+    mat[4] = 0;
+    mat[5] = 2 / (top - bottom);
+    mat[6] = 0;
+    mat[7] = 0;
+
+    mat[8] = 0;
+    mat[9] = 0;
+    mat[10] = 1 / (near - far);
+    mat[11] = 0;
+
+    mat[12] = (right + left) / (left - right);
+    mat[13] = (top + bottom) / (bottom - top);
+    mat[14] = near / (near - far);
+    mat[15] = 1;
+}
+
 function initObjects(objArray, numObjects)
 {
     for (let i = 0; i < numObjects; i++)
@@ -22,9 +45,9 @@ function initObjects(objArray, numObjects)
         objArray.push(
             {
                 color: new Float32Array([rand(), rand(), rand(), 1.0]),
-                position: new Float32Array([(rand()-0.5) * 2, (rand()-0.5) * 2]),
+                position: new Float32Array([0, 0]),
                 scale: new Float32Array([0.1, 0.1]),
-                velocity: [rand(-0.1, 0.1), rand(-0.1, 0.1)]
+                velocity: [rand(0.0, 0.0), rand(-0.1, 0.1)]
             }
         )
     }
@@ -80,7 +103,6 @@ async function initWebGPU()
     main(device, circleShaderSrc);
 }
 
-
 function main(device, circleShaderSrc)
 {
     const canvas = document.querySelector('canvas');
@@ -94,6 +116,7 @@ function main(device, circleShaderSrc)
 
     const maxObjects = 100;
     const circleObjs = [];
+    const projectionMat = new Float32Array(16);
 
     initObjects(circleObjs, maxObjects);
     console.log(circleObjs);
@@ -148,6 +171,12 @@ function main(device, circleShaderSrc)
         usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
     });
 
+    uniformBuf = device.createBuffer({
+       label: 'Uniform buffer for objects',
+       size: 16 * 4,
+       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+
     // write to buffer
     device.queue.writeBuffer(vertexBuf, 0, vertexData);
     device.queue.writeBuffer(indexBuf, 0, indexData);
@@ -178,6 +207,12 @@ function main(device, circleShaderSrc)
         label: 'main canvas renderer',
         colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
     }
+
+    const bindGroup = device.createBindGroup({
+        label: 'circle bind group',
+        layout: circlePipeline.getBindGroupLayout(0),
+        entries: [ {binding: 0, resource: {buffer: uniformBuf} }]
+    });
     function render()
     {
         // Update Simulation State
@@ -185,7 +220,9 @@ function main(device, circleShaderSrc)
         updateObjects(circleObjs);
         updateInstanceValues(instanceValuesF32, circleObjs);
         device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
-
+        const aspect = canvas.height/canvas.width;
+        ortho(-(aspect/2), aspect/2, -(aspect/2), aspect/2, 200, -100, projectionMat);
+        device.queue.writeBuffer(uniformBuf, 0, projectionMat);
         //
         // Set canvas as texture to render too.
         renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
@@ -194,10 +231,11 @@ function main(device, circleShaderSrc)
         const pass = encoder.beginRenderPass(renderPassDescriptor);
 
         pass.setPipeline(circlePipeline);
+        pass.setBindGroup(0, bindGroup);
         pass.setVertexBuffer(0, vertexBuf);
         pass.setVertexBuffer(1, instBuf);
         pass.setIndexBuffer(indexBuf, 'uint32');
-        pass.drawIndexed(6, maxObjects);
+        pass.drawIndexed(6, 1);
 
         pass.end();
         const commandBuffer = encoder.finish();

@@ -10,12 +10,6 @@ function context()
   return [canvas.width, canvas.height]
 }
 
-const buffer_index = rustWasm.return_pointer() / Float32Array.BYTES_PER_ELEMENT; // ?????
-for (let i = 0; i < 12; i++)
-{
-  console.log([buffer_index + i]);
-}
-
 };
 
 runWasm();
