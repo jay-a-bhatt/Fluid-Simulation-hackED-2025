@@ -89,6 +89,9 @@
     }
 
     .open {
+      position: fixed;
+      top: 0;
+      left: 0;
       font-family: "Lato", sans-serif;
       font-size: 40px;
       color: #f1f1f1;
@@ -205,27 +208,27 @@
       <div class="text" id="grav"></div>
     </div>
   </div>
-  <button class="open" onclick="open_nav()">☰ Options</b>
-    <script>
-      var slider2 = document.getElementById("slider2");
-      var slider1 = document.getElementById("slider1");
-      var output2 = document.getElementById("grav");
+  <button class="open" onclick="open_nav()">☰ Options</button>
+  <script>
+    var slider2 = document.getElementById("slider2");
+    var slider1 = document.getElementById("slider1");
+    var output2 = document.getElementById("grav");
 
-      output2.innerHTML = slider2.value;
+    output2.innerHTML = slider2.value;
 
-      slider2.oninput = function () {
-        output2.innerHTML = this.value;
-      }
+    slider2.oninput = function () {
+      output2.innerHTML = this.value;
+    }
 
-      function open_nav() {
-        document.getElementById("panelID").style.width = "275px";
-      }
+    function open_nav() {
+      document.getElementById("panelID").style.width = "275px";
+    }
 
-      function close_nav() {
-        document.getElementById("panelID").style.width = "0px";
-      }
-    </script>
-    <canvas></canvas>
+    function close_nav() {
+      document.getElementById("panelID").style.width = "0px";
+    }
+  </script>
+  <canvas></canvas>
 </body>
 
 </html>
