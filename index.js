@@ -36,11 +36,31 @@ function main(device, simModule, circleShaderSrc)
 
     // Start the simulation
     simModule.init_simulation();
-
     const canvas = document.querySelector('canvas');
     const presentationFmt = navigator.gpu.getPreferredCanvasFormat();
     const context = canvas.getContext('webgpu');
     context.configure({device, format: presentationFmt} )
+
+    const simHeight = 3.0;
+    const canvasScale = canvas.height/simHeight;
+    const simWidth = canvas.width/canvasScale;
+
+    const tankWidth = 1.0 * simWidth;
+    const tankHeight = 1.0 * simHeight;
+    const relativeWaterHeight = 0.8;
+    const relativeWaterWidth = 0.6;
+    const density = 1000.0;
+
+    const res = 100;
+    const spacing = tankHeight / res;
+    const particleRadius = 0.3 * spacing;
+    const dx = 2.0 * particleRadius;
+    const dy = Math.sqrt(3.0) / (2.0 * dx);
+    const numX = Math.floor((relativeWaterWidth * tankWidth - 2.0 * spacing - 2.0 * particleRadius) /dx);
+    const numY =  Math.floor((relativeWaterHeight * tankHeight - 2.0 * spacing - 2.0 * particleRadius) /dy);
+    const maxParticles = numX * numY;
+
+    const fluidSim = SimWASM(density, tankWidth, tankHeight, spacing, particleRadius, maxParticles);
 
     // Circle Render Data ------
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
