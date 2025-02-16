@@ -1,6 +1,19 @@
 import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {SimWASM} from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {ortho, initObjects, updateObjects, updateInstanceValues} from './util.js'
+import {testStruct} from "./pkg/Fluid_Simulation_hackED_2025.js";
+import {printBalls} from "./util.js";
+
+
+// render global state
+
+// function here
+
+const num = 0;
+window.exports = {
+    hello: function () { console.log(num); }
+};
+
 
 async function initWebGPU()
 {
@@ -61,8 +74,8 @@ function main(device, simModule, circleShaderSrc)
     const numY =  Math.floor((relativeWaterHeight * tankHeight - 2.0 * spacing - 2.0 * particleRadius) /dy);
     const maxParticles = numX * numY;
 
+    const testS = new testStruct(6,6);
     const fluidSim = new SimWASM(density, tankWidth, tankHeight, spacing, particleRadius, maxParticles);
-
     // Circle Render Data ------
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
@@ -169,7 +182,8 @@ function main(device, simModule, circleShaderSrc)
     function render()
     {
         // Update Simulation State
-        simModule.update(0.01, fluidSim);
+        fluidSim.update(0.001);
+       // simModule.update(0.01, testS);
         // Get pointer to location of instance buffer in wasm memory
         let instanceBufferPtr = simModule.get_instance_buffer_ptr();
         // Get a F32 array view into the buffer

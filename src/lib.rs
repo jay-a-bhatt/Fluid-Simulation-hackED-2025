@@ -7,6 +7,14 @@ use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
 const MAX_INSTANCES: usize = 100;
 // NUMBER OF FLOATS PER INSTANCE
+
+#[wasm_bindgen]
+extern "C"
+{
+    #[wasm_bindgen(js_namespace = exports)]
+    fn hello();
+}
+
 const INSTANCE_SIZE_F32: usize = 4+2+2; // FOUR FOR COLOR (R, G, B, A) TWO FOR POSITION (X, Y) TWO FOR SIZE (WIDTH, HEIGHT) 8 TOTAL FLOATS
 static mut INSTANCE_GFX_BUFFER: [f32; MAX_INSTANCES* INSTANCE_SIZE_F32] = [0.0; INSTANCE_SIZE_F32 * MAX_INSTANCES];
 static mut CURRENT_INSTANCE: usize = 0;
@@ -26,6 +34,7 @@ pub fn draw_circle(r: f32, g: f32, b: f32, x: f32, y: f32, s_x: f32, s_y: f32)
         // TODO(rordon): Force draw call when buffer reaches max capacity.
         if CURRENT_INSTANCE == MAX_INSTANCES
         {
+            // force draw call
             CURRENT_INSTANCE = 0;
         }
     }
@@ -124,21 +133,6 @@ pub fn init_simulation()
     }
 }
 
-// UPDATE FUNCTION
-#[wasm_bindgen]
-pub fn update(delta_time: f32, mut sim: SimWASM)
-{
-    sim.step();
-
-    unsafe
-    {
-        CURRENT_INSTANCE = 0;
-        SIM.integrate_balls(delta_time);
-        SIM.handle_ball_wall_collision();
-        SIM.draw_balls();
-    }
-
-}
 
 struct context
 {
@@ -164,6 +158,24 @@ fn init_context(canvas_x: i32, canvas_y: i32, mouse_x: i32, mouse_y: i32) -> con
 pub struct SimWASM {
     scene: lib_fluid::Scene,
 }
+
+#[wasm_bindgen]
+pub struct testStruct
+{
+    pub num1: i32,
+    num2: i32,
+}
+
+#[wasm_bindgen]
+impl testStruct
+{
+    #[wasm_bindgen(constructor)]
+    pub fn new(n1:i32, n2: i32) -> Self
+    {
+        testStruct { num1: n1, num2: n2 }
+    }
+}
+
 
 #[wasm_bindgen]
 impl SimWASM {
@@ -203,4 +215,24 @@ impl SimWASM {
             self.scene.obstacle_radius,
         );
     }
+
+    #[wasm_bindgen]
+    pub fn update(&mut self, delta_time: f32)
+    {
+        hello();
+        unsafe
+        {
+            CURRENT_INSTANCE = 0;
+            SIM.integrate_balls(delta_time);
+            SIM.handle_ball_wall_collision();
+            SIM.draw_balls();
+        }
+    }
+}
+
+// UPDATE FUNCTION
+#[wasm_bindgen]
+pub fn update(delta_time: f32, sim: &testStruct)
+{
+    //sim.step();
 }

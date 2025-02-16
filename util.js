@@ -13,6 +13,14 @@ export const rand = (min, max) => {
 
     return min + Math.random() * (max - min);
 };
+let count = 0;
+export function printBalls()
+{
+    console.log(count++);
+
+    // force draw call
+    // reset buffer
+}
 
 export function ortho(left, right, bottom, top, near, far, mat)
 {
