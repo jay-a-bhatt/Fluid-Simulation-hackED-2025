@@ -288,23 +288,26 @@ function main(device, simModule, circleShaderSrc)
 
     try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
     catch { observer.observe(canvas, {box: 'content-box'}) }
-}
 
-// returning mouse x, y positions
-function mouse_position_x()
-{
-    window.addEventListener('mousemove', function (e)
-    {
-        return e.x;
-    });
-}
+    // MENU INPUT
+    let switch_1 = document.getElementById("1"), switch_2 = document.getElementById("2"),
+    switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
+    let slider_1 = document.getElementById("slider1");
+    let slider_2 = document.getElementById("slider2"); // refer to slider_X.value
 
-function mouse_position_y()
-{
-    window.addEventListener('mousemove', function (e)
-    {
-        return e.x;
-    });
+    // MOUSE INPUT
+    let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
+    window.addEventListener('mousedown', function(event){mouse_down = 1;});
+    window.addEventListener('mouseup', function(event){mouse_down = 0;});
+    window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
+
+    /*
+    CANVAS VALUE | (canvas.width) x (canvas.height)
+           MOUSE |(mouse_x) x (mouse_y); mouse_down
+    SWITCH VALUE | ${switch_#.querySelector('input').checked}
+    SLIDER VALUE | ${slider_#.value}`)
+    */
+
 }
 
 const initWasm = async () =>

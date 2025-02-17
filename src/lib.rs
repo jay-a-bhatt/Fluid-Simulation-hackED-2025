@@ -200,7 +200,7 @@ impl SimulationHandler
                 self.scene.num_pressure_iters,
                 self.scene.num_particle_iters,
                 self.scene.over_relaxation,
-                Some(self.scene.compensate_drift),
+                self.scene.compensate_drift,
                 self.scene.separate_particles,
                 self.scene.obstacle_x,
                 self.scene.obstacle_y,
