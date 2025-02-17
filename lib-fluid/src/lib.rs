@@ -1,6 +1,6 @@
 
 use std::{cell, cmp};
-
+use libm::sqrtf;
 use var::{FLUID_CELL, SOLID_CELL};
 mod var;
 
@@ -41,7 +41,7 @@ impl Scene {
         density: f32,
         width: f32,
         height: f32,
-        spacing: f32,
+        cell_size: f32,
         particle_radius: f32,
         max_particles: i32,
     ) -> Self {
@@ -65,12 +65,12 @@ impl Scene {
             show_particles: true,
             show_grid: false,
             fluid: FlipFluid::new(
-                density, 
-                width, 
-                height, 
-                spacing, 
-                particle_radius, 
-                max_particles
+                density,
+                width,
+                height,
+                cell_size,
+                particle_radius,
+                max_particles,
             ),
         }
     }
@@ -79,7 +79,7 @@ pub struct FlipFluid {
     density: f32,
     f_num_x: i32,
     f_num_y: i32,
-    h: f32,
+    cell_size: f32,
     f_inv_spacing: f32,
     f_num_cells: i32,
 
@@ -120,12 +120,12 @@ impl FlipFluid {
         density: f32,
         width: f32,
         height: f32,
-        spacing: f32,
+        cell_size: f32,
         particle_radius: f32,
         max_particles: i32,
     ) -> Self {
-        let f_num_x = (width / spacing).floor() as i32 + 1;
-        let f_num_y = (height / spacing).floor() as i32 + 1;
+        let f_num_x = (width / cell_size).floor() as i32 + 1;
+        let f_num_y = (height / cell_size).floor() as i32 + 1;
         let h = (width / f_num_x as f32).max(height / f_num_y as f32);
         let f_inv_spacing = 1.0 / h;
         let f_num_cells = f_num_x * f_num_y;
@@ -139,7 +139,7 @@ impl FlipFluid {
             density,
             f_num_x,
             f_num_y,
-            h,
+            cell_size: h,
             f_inv_spacing,
             f_num_cells,
 
@@ -360,7 +360,7 @@ impl FlipFluid {
 
     fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: Option<f32>) {
         let n: f32 = self.f_num_y as f32;
-        let h: f32 = self.h;
+        let h: f32 = self.cell_size;
         let h1: f32 = self.f_inv_spacing;
         let h2: f32 = h * 0.5;
 
@@ -559,9 +559,9 @@ impl FlipFluid {
 
     fn update_particle_density(&mut self) {
         let n = self.f_num_y;
-        let h = self.h;
+        let h = self.cell_size;
         let h1 = self.f_inv_spacing;
-        let h2 = self.h * 0.5;
+        let h2 = self.cell_size * 0.5;
 
         let mut d = self.particle_density.clone();
         d.fill(0.0);
@@ -629,7 +629,7 @@ impl FlipFluid {
         self.prev_v = self.v.clone();
 
         let n: i32 = self.f_num_y;
-        let cp: f32 = self.density * self.h / dt;
+        let cp: f32 = self.density * self.cell_size / dt;
 
         for i in 0..self.f_num_cells {
             let u: f32 = self.u[i as usize];
@@ -816,6 +816,49 @@ impl FlipFluid {
         self.update_particle_colours();
         self.update_cell_colours();
     }
+}
+
+pub fn create_particles(fluid: &mut FlipFluid, num_x: i32, num_y: i32)
+{
+    fluid.num_particles = num_x * num_y;
+
+    let dist_x: f32 = 2.0 * fluid.particle_radius;
+    let dist_y: f32 = sqrtf(3.0) / 2.0 * dist_x;
+
+    let cell_size = fluid.cell_size;
+    let particle_rad = fluid.particle_radius;
+    let mut p:usize = 0;
+    for i in 0..num_x
+    {
+        for j in 0..num_y
+        {
+            let mut offset_x: f32 = particle_rad;
+            if (j % 2 == 0) { offset_x = 0.0 }
+
+            fluid.particle_pos[p] = cell_size + particle_rad + dist_x * (i as f32) + offset_x;
+            p += 1;
+            fluid.particle_pos[p] = cell_size + particle_rad + dist_y * (j as f32);
+            p += 1;
+        }
+    }
+}
+
+pub fn setup_grid(fluid: &mut FlipFluid)
+{
+    for i in 0..fluid.f_num_x
+    {
+        for j in 0..fluid.f_num_y
+        {
+            let mut state = 1.0; // Default fluid state
+            if (i == 0 || i == fluid.f_num_x - 1 || j == 0) { state = 0.0; }
+            fluid.s[(i * fluid.f_num_y + j) as usize] = state;
+        }
+    }
+}
+
+pub fn set_obstacle(fluid: &mut FlipFluid)
+{
+    todo!()
 }
 
 fn main() {
