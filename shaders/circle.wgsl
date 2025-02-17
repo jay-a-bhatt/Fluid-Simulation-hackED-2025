@@ -7,7 +7,8 @@ struct vsOutput
 
 struct Uniforms
 {
-    proj: mat4x4f
+    proj: mat4x4f,
+    view: mat4x4f
 }
 
 struct vert
@@ -32,8 +33,9 @@ fn vs(vertex: vert) -> vsOutput
     );
 
     var proj = uniforms.proj;
+    var view = uniforms.view;
     var vsOut: vsOutput;
-    var mp = proj * model;
+    var mp = proj * view * model;
     vsOut.position = mp * vec4f(vertex.vertexPos, 0.0, 1.0);
     vsOut.color = vertex.color;
     vsOut.texCoord = vertex.texCoord;

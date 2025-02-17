@@ -1,10 +1,13 @@
 extern crate wasm_bindgen;
+extern crate console_error_panic_hook;
+use std::panic;
+
 use rand::{Rng, RngCore};
 use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
 use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
-const MAX_INSTANCES: usize = 15000;
+const MAX_INSTANCES: usize = 16384;
 // NUMBER OF FLOATS PER INSTANCE
 
 #[wasm_bindgen]
@@ -119,6 +122,7 @@ static mut SIM: BounceSim = BounceSim { areaWidth:2.5f32, areaHeight:1.0f32, bal
 #[wasm_bindgen]
 pub fn init_test_simulation()
 {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     unsafe
     {
         // make some ballz
@@ -136,6 +140,7 @@ pub fn init_test_simulation()
 
 fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
 {
+    unsafe { CURRENT_INSTANCE = 0 };
     for i in 0..fluid.num_particles
     {
         let index = i as usize;
@@ -146,7 +151,8 @@ fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
         let g = fluid.particle_colour[(index * 3) + 1];
         let b = fluid.particle_colour[(index * 3) + 2];
 
-        draw_circle(1.0, 0.0, 0.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+        draw_circle(r, 0.5, 1.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+
     }
 }
 
@@ -185,10 +191,10 @@ impl SimulationHandler
     pub fn update(&mut self, delta_time: f32)
     {
         // TODO: add pausing to scene
-        if (false)
+        if (true)
         {
             self.scene.fluid.simulate(
-                delta_time,
+                self.scene.dt,
                 self.scene.gravity,
                 self.scene.flip_ratio,
                 self.scene.num_pressure_iters,

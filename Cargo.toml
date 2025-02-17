@@ -10,4 +10,7 @@ crate-type = ["cdylib"]
 wasm-bindgen = "0.2"
 getrandom = { version = "0.2", features = ["js"] }
 rand = "0.8"
+console_error_panic_hook = "0.1.7"
 lib-fluid = {path = "lib-fluid"}
+[profile.release]
+debug = true

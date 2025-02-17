@@ -1,6 +1,6 @@
 import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {SimulationHandler} from "./pkg/Fluid_Simulation_hackED_2025.js";
-import {ortho, initObjects, updateObjects, updateInstanceValues} from './util.js'
+import {ortho, initObjects, updateObjects, updateInstanceValues, view} from './util.js'
 
 
 // render global state
@@ -116,9 +116,10 @@ function main(device, simModule, circleShaderSrc)
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
-    const maxObjects = 15000;
+    const maxObjects = 16384;
     const circleObjs = [];
     const projectionMat = new Float32Array(16);
+    const viewMat = new Float32Array(16);
 
     initObjects(circleObjs, maxObjects);
     console.log(circleObjs);
@@ -175,7 +176,7 @@ function main(device, simModule, circleShaderSrc)
 
     const uniformBuf = device.createBuffer({
         label: 'Uniform buffer for objects',
-        size: 16 * 4,
+        size: 16 * 4 * 2,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
@@ -196,6 +197,8 @@ function main(device, simModule, circleShaderSrc)
     }
      */
     device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
+
+    let uniformValues = new Float32Array(32);
 
     const circlePipeline = device.createRenderPipeline(
         {
@@ -218,7 +221,7 @@ function main(device, simModule, circleShaderSrc)
     function render()
     {
         // Update Simulation State
-        simHandler.update(0.001);
+        simHandler.update(1.0/120.0);
         
         // simModule.update(0.01, testS);
         // Get pointer to location of instance buffer in wasm memory
@@ -230,13 +233,19 @@ function main(device, simModule, circleShaderSrc)
         //updateInstanceValues(instanceValuesF32, circleObjs);
         device.queue.writeBuffer(instBuf, 0, instanceBuffer);
         const aspect = canvas.width/canvas.height;
-        const zoom = 5.5;
+        const zoom = 4.0;
         const l = (-aspect/2) * zoom;
         const r = -l;
         const t = zoom/2;
         const b = -t;
         ortho(l, r, b, t, 200, -100, projectionMat);
-        device.queue.writeBuffer(uniformBuf, 0, projectionMat);
+        view(-aspect/2,-zoom/4, viewMat);
+        for (let i = 0; i < 16; i++)
+        {
+            uniformValues[i] = projectionMat[i];
+            uniformValues[i + 16] = viewMat[i];
+        }
+        device.queue.writeBuffer(uniformBuf, 0, uniformValues);
         //
         // Set canvas as texture to render too.
         renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
