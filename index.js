@@ -116,7 +116,7 @@ function main(device, simModule, circleShaderSrc)
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
-    const maxObjects = 15000;
+    const maxObjects = 16384;
     const circleObjs = [];
     const projectionMat = new Float32Array(16);
 

@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
 use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
-const MAX_INSTANCES: usize = 15000;
+const MAX_INSTANCES: usize = 16384;
 // NUMBER OF FLOATS PER INSTANCE
 
 #[wasm_bindgen]
@@ -136,6 +136,7 @@ pub fn init_test_simulation()
 
 fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
 {
+    unsafe { CURRENT_INSTANCE = 0 };
     for i in 0..fluid.num_particles
     {
         let index = i as usize;

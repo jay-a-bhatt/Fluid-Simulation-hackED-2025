@@ -805,7 +805,6 @@ impl FlipFluid {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
             return;
             if separate_particles { self.push_particles_apart(num_particle_iters); }
-
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
             self.transfer_velocities(true, None);
             self.update_particle_density();
