@@ -115,7 +115,7 @@ function main(device, simModule, circleShaderSrc)
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
 
-    const maxObjects = 100;
+    const maxObjects = 15000;
     const circleObjs = [];
     const projectionMat = new Float32Array(16);
 
@@ -150,7 +150,7 @@ function main(device, simModule, circleShaderSrc)
     ];
 
     const vertexBufferSize = vertexData.byteLength;
-    const instBufferSize   = instUnitSize * 100;
+    const instBufferSize   = instUnitSize * maxObjects;
     const indexBufferSize  = indexData.byteLength;
 
     // create buffers
@@ -223,13 +223,13 @@ function main(device, simModule, circleShaderSrc)
         // Get pointer to location of instance buffer in wasm memory
         let instanceBufferPtr = simModule.get_instance_buffer_ptr();
         // Get a F32 array view into the buffer
-        let instanceBuffer = new Float32Array(simModule.memory.buffer, instanceBufferPtr, 800);
+        let instanceBuffer = new Float32Array(simModule.memory.buffer, instanceBufferPtr, maxObjects * (instUnitSize/4));
 
         //updateObjects(circleObjs);
         //updateInstanceValues(instanceValuesF32, circleObjs);
         device.queue.writeBuffer(instBuf, 0, instanceBuffer);
         const aspect = canvas.width/canvas.height;
-        const zoom = 3;
+        const zoom = 5.5;
         const l = (-aspect/2) * zoom;
         const r = -l;
         const t = zoom/2;

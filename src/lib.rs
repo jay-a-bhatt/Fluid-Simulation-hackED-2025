@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
 use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
-const MAX_INSTANCES: usize = 100;
+const MAX_INSTANCES: usize = 15000;
 // NUMBER OF FLOATS PER INSTANCE
 
 #[wasm_bindgen]
@@ -134,6 +134,22 @@ pub fn init_test_simulation()
 
 // ---------------------------------------------------------------------------
 
+fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
+{
+    for i in 0..fluid.num_particles
+    {
+        let index = i as usize;
+        let pos_x = fluid.particle_pos[(index * 2) + 0];
+        let pos_y = fluid.particle_pos[(index * 2) + 1];
+
+        let r = fluid.particle_colour[(index * 3) + 0];
+        let g = fluid.particle_colour[(index * 3) + 1];
+        let b = fluid.particle_colour[(index * 3) + 2];
+
+        draw_circle(1.0, 0.0, 0.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+    }
+}
+
 #[wasm_bindgen]
 pub struct SimulationHandler
 {
@@ -185,13 +201,15 @@ impl SimulationHandler
             );
         }
 
+        draw_simulation(&self.scene.fluid, 0.018/2.0);
+
         hello();
         unsafe
         {
             CURRENT_INSTANCE = 0;
             SIM.integrate_balls(delta_time);
             SIM.handle_ball_wall_collision();
-            SIM.draw_balls();
+            //SIM.draw_balls();
         }
     }
 }
