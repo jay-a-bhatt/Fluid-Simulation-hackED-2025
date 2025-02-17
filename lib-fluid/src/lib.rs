@@ -179,7 +179,7 @@ impl FlipFluid {
     fn integrate_particles(&mut self, dt: f32, gravity: f32) {
         for i in 0..self.num_particles {
             self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
-            self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
+            self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * i) as usize] * dt;
             self.particle_pos[(2 * i + 1) as usize] += self.particle_vel[(2 * i + 1) as usize] * dt;
         }
     }
