@@ -4,13 +4,13 @@ use libm::sqrtf;
 use var::{FLUID_CELL, SOLID_CELL};
 mod var;
 
-fn clamp(x: f32, min: f32, max: f32) -> i32 {
+fn clamp(x: f32, min: f32, max: f32) -> f32 {
     if (x < min) {
-        return (min) as i32;
+        return min;
     } else if (x > max) {
-        return (max) as i32;
+        return max;
     } else {
-        return (x) as i32;
+        return x;
     }
 }
 
@@ -250,17 +250,17 @@ impl FlipFluid {
         for i in 0..self.num_particles {
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-            let xi: i32 = clamp(
+            let xi: f32 = clamp(
                 (x * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_x - 1) as f32,
             );
-            let yi: i32 = clamp(
+            let yi: f32 = clamp(
                 (y * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_y - 1) as f32,
             );
-            let cell_nr: i32 = xi * self.p_num_y + yi;
+            let cell_nr: f32 = xi * self.p_num_y as f32 + yi;
             self.num_cell_particles[(cell_nr) as usize] += 1;
         }
 
@@ -280,17 +280,17 @@ impl FlipFluid {
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
 
-            let xi: i32 = clamp(
+            let xi: f32 = clamp(
                 (x * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_x - 1) as f32,
             );
-            let yi: i32 = clamp(
+            let yi: f32 = clamp(
                 (y * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_y - 1) as f32,
             );
-            let cell_nr: i32 = xi * self.p_num_y + yi;
+            let cell_nr: f32 = xi * self.p_num_y as f32 + yi;
             self.num_cell_particles[(cell_nr) as usize] -= 1;
             // HACK: Subtract one from index to stop it going out of bounds
             let mut fcs:usize = self.first_cell_particles[(cell_nr) as usize] as usize;
@@ -368,8 +368,8 @@ impl FlipFluid {
         let h2: f32 = h * 0.5;
 
         if to_grid {
-            self.prev_u = self.u.clone(); //Using .clone() so might use more memory
-            self.prev_v = self.v.clone();
+            self.prev_u.copy_from_slice(&self.u);
+            self.prev_v.copy_from_slice(&self.v);
 
             self.du.fill(0.0);
             self.dv.fill(0.0);
@@ -387,9 +387,9 @@ impl FlipFluid {
             for i in 0..self.num_particles {
                 let x: f32 = self.particle_pos[(2 * i) as usize];
                 let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-                let xi: i32 = clamp((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
-                let yi: i32 = clamp((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
-                let cell_nr: i32 = xi * n as i32 + yi;
+                let xi: f32 = clamp((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
+                let yi: f32 = clamp((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
+                let cell_nr: f32 = xi * n + yi;
 
                 if self.cell_type[cell_nr as usize] == var::AIR_CELL {
                     self.cell_type[cell_nr as usize] = var::FLUID_CELL;
@@ -716,9 +716,9 @@ impl FlipFluid {
 
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-            let xi: i32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
-            let yi: i32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
-            let cell_nr: i32 = xi * self.f_num_y + yi;
+            let xi: f32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
+            let yi: f32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
+            let cell_nr: f32 = xi * self.f_num_y as f32 + yi;
 
             let d0: f32 = self.particle_rest_density;
 
@@ -854,9 +854,58 @@ pub fn setup_grid(fluid: &mut FlipFluid)
     }
 }
 
-pub fn set_obstacle(fluid: &mut FlipFluid)
+pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool, num_x: i32, num_y: i32)
 {
-    todo!()
+    let mut vel_x: f32 = 0.0;
+    let mut vel_y: f32 = 0.0;
+
+    if!reset{
+        vel_x = (mouse_x - scene.obstacle_x) / scene.dt;
+        vel_y = (mouse_y - scene.obstacle_y) / scene.dt;
+    }
+
+    scene.obstacle_x = mouse_x;
+    scene.obstacle_y = mouse_y;
+    let obs_rad: f32 = scene.obstacle_radius;
+    (vel_x, vel_y) = set_obs_loop(&mut scene.fluid, num_x, num_y, mouse_x, mouse_y, obs_rad, vel_x, vel_y);
+    
+    scene.show_obstacle = true;
+    scene.obstacle_vel_x = vel_x;
+    scene.obstacle_vel_y = vel_y;
+}
+
+/*NOTE: this function is the only one crashing the javascript. 
+It is beacuse of how fluid is accessed in set_obstacle.
+I only made it a function to isolate the issue, so commenting out the call will make the code run. (Not as intended though)*/
+pub fn set_obs_loop(
+    fluid: &mut FlipFluid, 
+    num_x: i32, 
+    num_y: i32, 
+    mouse_x: f32, 
+    mouse_y: f32, 
+    obs_rad: f32, 
+    vel_x: f32, 
+    vel_y: f32
+) -> (f32, f32){
+    for i in 0..num_x-2{
+        for j in 0..num_y-2{
+            
+            fluid.s[(i * num_y + j) as usize] = 1.0;
+
+            let dist_x: f32 = (i as f32 + 0.5) * fluid.cell_size - mouse_x;
+            let dist_y: f32 = (j as f32 + 0.5) * fluid.cell_size - mouse_y;
+
+             if dist_x * dist_x + dist_y * dist_y < obs_rad * obs_rad{
+                
+                fluid.s[(i * num_y + j) as usize] = 0.0;
+                fluid.u[(i * num_y + j) as usize] = vel_x;
+                fluid.u[((i+1) * num_y + j) as usize] = vel_x;
+                fluid.u[(i * num_y + j) as usize] = vel_y;
+                fluid.u[(i * num_y + (j+1)) as usize] = vel_y;
+            }
+        }
+    }
+    return (vel_x, vel_y);
 }
 
 fn main() {
