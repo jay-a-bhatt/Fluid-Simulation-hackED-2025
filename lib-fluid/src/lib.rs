@@ -856,9 +856,39 @@ pub fn setup_grid(fluid: &mut FlipFluid)
     }
 }
 
-pub fn set_obstacle(fluid: &mut FlipFluid)
+pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool, num_x: i32, num_y: i32)
 {
-    todo!()
+    let mut vel_x: f32 = 0.0;
+    let mut vel_y: f32 = 0.0;
+
+    if!reset{
+        vel_x = (mouse_x - scene.obstacle_x) / scene.dt;
+        vel_y = (mouse_y - scene.obstacle_y) / scene.dt;
+    }
+
+    scene.obstacle_x = mouse_x;
+    scene.obstacle_y = mouse_y;
+    let obs_rad: f32 = scene.obstacle_radius;
+
+    for i in 0..num_x-2{
+        for j in 0..num_y-2{
+            scene.fluid.s[(i * num_y + j) as usize] = 1.0;
+
+            let dist_x: f32 = (i as f32 + 0.5) * scene.fluid.cell_size - mouse_x;
+            let dist_y: f32 = (j as f32 + 0.5) * scene.fluid.cell_size - mouse_y;
+
+            if dist_x * dist_x + dist_y * dist_y < obs_rad * obs_rad{
+                scene.fluid.s[(i * num_y + j) as usize] = 0.0;
+                scene.fluid.u[(i * num_y + j) as usize] = vel_x;
+                scene.fluid.u[((i+1) * num_y + j) as usize] = vel_x;
+                scene.fluid.u[(i * num_y + j) as usize] = vel_y;
+                scene.fluid.u[(i * num_y + (j+1)) as usize] = vel_y;
+            }
+        }
+    }
+    scene.show_obstacle = true;
+    scene.obstacle_vel_x = vel_x;
+    scene.obstacle_vel_y = vel_y;
 }
 
 fn main() {
