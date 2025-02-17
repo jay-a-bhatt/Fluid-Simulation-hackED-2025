@@ -331,7 +331,7 @@ impl FlipFluid {
                             if d2 > min_dist_2 || d2 == 0.0 {
                                 continue;
                             }
-                            let d: f32 = libm::sqrtf(d2);
+                            let d: f32 = sqrtf(d2);
                             let s: f32 = 0.5 * (min_dist - d) / d;
                             dx *= s;
                             dy *= s;
@@ -802,10 +802,10 @@ impl FlipFluid {
         let sdt = dt / num_sub_steps as f32;
 
         for _ in 0..num_sub_steps {
-            self.integrate_particles(sdt, gravity);
-            if separate_particles {
-                self.push_particles_apart(num_particle_iters);
-            }
+            self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
+            return;
+            if separate_particles { self.push_particles_apart(num_particle_iters); }
+
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
             self.transfer_velocities(true, None);
             self.update_particle_density();

@@ -184,7 +184,7 @@ impl SimulationHandler
     pub fn update(&mut self, delta_time: f32)
     {
         // TODO: add pausing to scene
-        if (false)
+        if (true)
         {
             self.scene.fluid.simulate(
                 delta_time,
