@@ -361,7 +361,7 @@ impl FlipFluid {
         }
     }
 
-    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: Option<f32>) {
+    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: f32) {
         let n: f32 = self.f_num_y as f32;
         let h: f32 = self.cell_size;
         let h1: f32 = self.f_inv_spacing;
@@ -510,10 +510,7 @@ impl FlipFluid {
                             / d;
                         let flip_v: f32 = v + corr;
 
-                        if let Some(ratio) = flip_ratio {
-                            self.particle_vel[(2 * i + component) as usize] =
-                                (1.0 - ratio) * pic_v + ratio * flip_v;
-                        }
+                        self.particle_vel[(2 * i + component) as usize] = (1.0 - flip_ratio) * pic_v + flip_ratio * flip_v;
 
                         // IDK how to implement Option<f32> properly, I tried my best above - Jay
                         //
@@ -622,11 +619,8 @@ impl FlipFluid {
         num_iters: i32,
         dt: f32,
         over_relaxation: f32,
-        mut compensate_drift: Option<bool>,
+        mut compensate_drift: bool,
     ) {
-        if compensate_drift == None {
-            compensate_drift = Some(true);
-        }
         self.p.fill(0.0);
         self.prev_u = self.u.clone(); // clone() might use more memory
         self.prev_v = self.v.clone();
@@ -666,7 +660,8 @@ impl FlipFluid {
                         + self.v[top as usize]
                         - self.v[center as usize];
 
-                    if self.particle_rest_density > 0.0 && compensate_drift == Some(true) {
+                    if self.particle_rest_density > 0.0 && compensate_drift
+                    {
                         let k: f32 = 1.0;
                         let compression = self.particle_density[(i * n + j) as usize]
                             - self.particle_rest_density;
@@ -795,7 +790,7 @@ impl FlipFluid {
         num_pressure_iters: i32,
         num_particle_iters: i32,
         over_relaxation: f32,
-        compensate_drift: Option<bool>,
+        compensate_drift: bool,
         separate_particles: bool,
         obstacle_x: f32,
         obstacle_y: f32,
@@ -808,11 +803,12 @@ impl FlipFluid {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
             if separate_particles { self.push_particles_apart(4); }
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
-            return;
-            self.transfer_velocities(true, None);
-            self.update_particle_density();
-            self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
-            self.transfer_velocities(false, Some(flip_ratio));
+            self.transfer_velocities(true, 0.0);
+            self.solve_incompressibility(num_pressure_iters, sdt, over_relaxation, compensate_drift);
+            self.transfer_velocities(false, 0.9);
+
+            // NOT USING UPDATE PARTICLE DENSITY ANYMORE
+            // self.update_particle_density();
         }
 
         self.update_particle_colours();
