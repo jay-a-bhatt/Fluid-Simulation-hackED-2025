@@ -785,7 +785,7 @@ impl FlipFluid {
         num_pressure_iters: i32,
         num_particle_iters: i32,
         over_relaxation: f32,
-        compensate_drift: Option<bool>,
+        compensate_drift: bool,
         separate_particles: bool,
         obstacle_x: f32,
         obstacle_y: f32,
@@ -798,10 +798,8 @@ impl FlipFluid {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
             if separate_particles { self.push_particles_apart(4); }
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
-            return;
             self.transfer_velocities(true, None);
-            self.update_particle_density();
-            self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
+            self.solve_incompressibility(num_pressure_iters as usize, dt, over_relaxation, false);
             self.transfer_velocities(false, Some(flip_ratio));
         }
 
