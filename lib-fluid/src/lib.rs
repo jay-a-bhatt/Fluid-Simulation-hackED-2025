@@ -368,8 +368,8 @@ impl FlipFluid {
         let h2: f32 = h * 0.5;
 
         if to_grid {
-            self.prev_u = self.u.clone(); //Using .clone() so might use more memory
-            self.prev_v = self.v.clone();
+            self.prev_u.copy_from_slice(&self.u);
+            self.prev_v.copy_from_slice(&self.v);
 
             self.du.fill(0.0);
             self.dv.fill(0.0);

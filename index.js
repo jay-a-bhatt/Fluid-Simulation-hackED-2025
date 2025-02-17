@@ -294,7 +294,7 @@ function main(device, simModule, circleShaderSrc)
     switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
     let slider_1 = document.getElementById("slider1");
     let slider_2 = document.getElementById("slider2"); // refer to slider_X.value
-
+    
     // MOUSE INPUT
     let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
     window.addEventListener('mousedown', function(event){mouse_down = 1;});
