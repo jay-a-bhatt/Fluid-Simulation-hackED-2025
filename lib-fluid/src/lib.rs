@@ -96,8 +96,8 @@ pub struct FlipFluid {
 
     max_particles: i32,
 
-    particle_pos: Vec<f32>,
-    particle_colour: Vec<f32>,
+    pub particle_pos: Vec<f32>,
+    pub particle_colour: Vec<f32>,
     particle_vel: Vec<f32>,
     particle_density: Vec<f32>,
     particle_rest_density: f32,
@@ -112,7 +112,7 @@ pub struct FlipFluid {
     first_cell_particles: Vec<i32>,
     cell_particle_ids: Vec<i32>,
 
-    num_particles: i32,
+    pub num_particles: i32,
 }
 
 impl FlipFluid {
