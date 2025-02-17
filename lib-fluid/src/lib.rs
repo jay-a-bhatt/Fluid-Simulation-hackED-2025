@@ -4,13 +4,13 @@ use libm::sqrtf;
 use var::{FLUID_CELL, SOLID_CELL};
 mod var;
 
-fn clamp(x: f32, min: f32, max: f32) -> i32 {
+fn clamp(x: f32, min: f32, max: f32) -> f32 {
     if (x < min) {
-        return (min) as i32;
+        return min;
     } else if (x > max) {
-        return (max) as i32;
+        return max;
     } else {
-        return (x) as i32;
+        return x;
     }
 }
 
@@ -179,7 +179,7 @@ impl FlipFluid {
     fn integrate_particles(&mut self, dt: f32, gravity: f32) {
         for i in 0..self.num_particles {
             self.particle_vel[(2 * i + 1) as usize] += dt * gravity;
-            self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * 1) as usize] * dt;
+            self.particle_pos[(2 * i) as usize] += self.particle_vel[(2 * i) as usize] * dt;
             self.particle_pos[(2 * i + 1) as usize] += self.particle_vel[(2 * i + 1) as usize] * dt;
         }
     }
@@ -250,17 +250,17 @@ impl FlipFluid {
         for i in 0..self.num_particles {
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-            let xi: i32 = clamp(
+            let xi: f32 = clamp(
                 (x * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_x - 1) as f32,
             );
-            let yi: i32 = clamp(
+            let yi: f32 = clamp(
                 (y * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_y - 1) as f32,
             );
-            let cell_nr: i32 = xi * self.p_num_y + yi;
+            let cell_nr: f32 = xi * self.p_num_y as f32 + yi;
             self.num_cell_particles[(cell_nr) as usize] += 1;
         }
 
@@ -280,17 +280,17 @@ impl FlipFluid {
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
 
-            let xi: i32 = clamp(
+            let xi: f32 = clamp(
                 (x * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_x - 1) as f32,
             );
-            let yi: i32 = clamp(
+            let yi: f32 = clamp(
                 (y * self.p_inv_spacing).floor(),
                 0.0,
                 (self.p_num_y - 1) as f32,
             );
-            let cell_nr: i32 = xi * self.p_num_y + yi;
+            let cell_nr: f32 = xi * self.p_num_y as f32 + yi;
             self.num_cell_particles[(cell_nr) as usize] -= 1;
             // HACK: Subtract one from index to stop it going out of bounds
             let mut fcs:usize = self.first_cell_particles[(cell_nr) as usize] as usize;
@@ -387,9 +387,9 @@ impl FlipFluid {
             for i in 0..self.num_particles {
                 let x: f32 = self.particle_pos[(2 * i) as usize];
                 let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-                let xi: i32 = clamp((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
-                let yi: i32 = clamp((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
-                let cell_nr: i32 = xi * n as i32 + yi;
+                let xi: f32 = clamp((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
+                let yi: f32 = clamp((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
+                let cell_nr: f32 = xi * n + yi;
 
                 if self.cell_type[cell_nr as usize] == var::AIR_CELL {
                     self.cell_type[cell_nr as usize] = var::FLUID_CELL;
@@ -716,9 +716,9 @@ impl FlipFluid {
 
             let x: f32 = self.particle_pos[(2 * i) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
-            let xi: i32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
-            let yi: i32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
-            let cell_nr: i32 = xi * self.f_num_y + yi;
+            let xi: f32 = clamp((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
+            let yi: f32 = clamp((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
+            let cell_nr: f32 = xi * self.f_num_y as f32 + yi;
 
             let d0: f32 = self.particle_rest_density;
 

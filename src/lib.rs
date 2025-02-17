@@ -182,7 +182,7 @@ impl SimulationHandler
         setup_grid(&mut scene.fluid);
         // TODO: finish this if we have time.
         // params are for mouse_x, mouse_y, and reset
-        set_obstacle(&mut scene, 3.0, 2.0, true, num_x, num_y);
+        //set_obstacle(&mut scene, 3.0, 2.0, true, num_x, num_y);
 
         return SimulationHandler { scene };
     }
