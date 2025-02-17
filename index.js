@@ -79,6 +79,7 @@ function initSimulation(simWasmModule)
 
     // Maximum possible particles in our simulation.
     const maxParticles = numX * numY;
+    console.log(maxParticles);
 
     // Create WebAssembly + Rust Simulation Handler
     const simHandler = new SimulationHandler(

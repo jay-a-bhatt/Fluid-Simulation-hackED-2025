@@ -203,7 +203,7 @@ impl SimulationHandler
 
         draw_simulation(&self.scene.fluid, 0.018/2.0);
 
-        hello();
+        // hello();
         unsafe
         {
             CURRENT_INSTANCE = 0;
