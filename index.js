@@ -44,6 +44,95 @@ async function initWebGPU()
     return device;
 }
 
+
+function setupScene(){
+
+ /*   var scene = 
+	{
+		gravity : -9.81,
+//		gravity : 0.0,
+		dt : 1.0 / 120.0,
+		flipRatio : 0.9,
+		numPressureIters : 100,
+		numParticleIters : 2,
+		frameNr : 0,
+		overRelaxation : 1.9,
+		compensateDrift : true,
+		separateParticles : true,
+		obstacleX : 0.0,
+		obstacleY : 0.0,
+		obstacleRadius: 0.15,
+		paused: true,
+		showObstacle: true,
+		obstacleVelX: 0.0,
+		obstacleVelY: 0.0,
+		showParticles: true,
+		showGrid: false,
+		fluid: null
+	};
+
+    scene.obstacleRadius = 0.15;
+    scene.overRelaxation = 1.9;
+
+    scene.dt = 1.0 / 60.0;
+    scene.numPressureIters = 50;
+    scene.numParticleIters = 2;*/
+
+    var simHeight = 3.0;
+    var canvasScale = canvas.height/simHeight;
+    var simWidth = canvas.width/canvasScale;
+
+    var tankWidth = 1.0 * simWidth;
+    var tankHeight = 1.0 * simHeight;
+    var relativeWaterHeight = 0.8;
+    var relativeWaterWidth = 0.6;
+    var density = 1000.0;
+
+    var res = 100;
+    var spacing = tankHeight / res; //h
+
+    //dam break
+
+    //compute number of particles
+
+    var particleRadius = 0.3 * spacing; // r
+    var dx = 2.0 * particleRadius;
+    var dy = Math.sqrt(3.0) / (2.0 * dx);
+
+    var numX = Math.floor((relativeWaterWidth * tankWidth - 2.0 * spacing - 2.0 * particleRadius) /dx);
+    var numY =  Math.floor((relativeWaterHeight * tankHeight - 2.0 * spacing - 2.0 * particleRadius) /dy);
+    var maxParticles = numX * numY;
+
+
+    // create fluid
+
+    var simWasm = new SimWASM(density, tankWidth, tankHeight, spacing, particleRadius, maxParticles); // f
+
+    simWasm.scene.fluid.num_particles= numX * numY
+    var p = 0;
+    for (let i = 0; i < numX; i++) {
+        for (let j = 0; j < numY; j++) {
+            simWasm.scene.fluid.particle_pos[p++] = spacing + particleRadius + dx * i + (j % 2 == 0 ? 0.0 : particleRadius);
+            simWasm.scene.fluid.particle_pos[p++] = spacing + particleRadius + dy * j;
+        }
+    }
+
+    //setup grid cells for tank
+
+    var n = simWasm.scene.fluid.f_num_y;
+
+    for (let i = 0; i < simWasm.scene.fluid.f_num_x; i++) {
+        for (let j = 0; j < simWasm.scene.fluid.f_num_y; j++) {
+            var s = 1.0; // fluid
+            if(i == 0 || i == simWasm.scene.fluid.f_num_x-1 || j == 0){
+                s = 0.0;
+            }
+            simWasm.scene.fluid.s[i*n + j] = s;
+        }
+    }
+   // setObstacle(3.0, 2.0, true);
+}
+
 function main(device, simModule, circleShaderSrc)
 {
     let wasmMemory = new Uint8Array(simModule.memory.buffer);
@@ -55,27 +144,7 @@ function main(device, simModule, circleShaderSrc)
     const context = canvas.getContext('webgpu');
     context.configure({device, format: presentationFmt} )
 
-    const simHeight = 3.0;
-    const canvasScale = canvas.height/simHeight;
-    const simWidth = canvas.width/canvasScale;
-
-    const tankWidth = 1.0 * simWidth;
-    const tankHeight = 1.0 * simHeight;
-    const relativeWaterHeight = 0.8;
-    const relativeWaterWidth = 0.6;
-    const density = 1000.0;
-
-    const res = 100;
-    const spacing = tankHeight / res;
-    const particleRadius = 0.3 * spacing;
-    const dx = 2.0 * particleRadius;
-    const dy = Math.sqrt(3.0) / (2.0 * dx);
-    const numX = Math.floor((relativeWaterWidth * tankWidth - 2.0 * spacing - 2.0 * particleRadius) /dx);
-    const numY =  Math.floor((relativeWaterHeight * tankHeight - 2.0 * spacing - 2.0 * particleRadius) /dy);
-    const maxParticles = numX * numY;
-
-    const testS = new testStruct(6,6);
-    const fluidSim = new SimWASM(density, tankWidth, tankHeight, spacing, particleRadius, maxParticles);
+   
     // Circle Render Data ------
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
@@ -182,7 +251,7 @@ function main(device, simModule, circleShaderSrc)
     function render()
     {
         // Update Simulation State
-        fluidSim.update(0.001);
+        //fluidSim.update(0.001);
        // simModule.update(0.01, testS);
         // Get pointer to location of instance buffer in wasm memory
         let instanceBufferPtr = simModule.get_instance_buffer_ptr();

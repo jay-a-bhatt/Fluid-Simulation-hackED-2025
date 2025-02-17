@@ -65,12 +65,12 @@ impl Scene {
             show_particles: true,
             show_grid: false,
             fluid: FlipFluid::new(
-                density,
-                width,
-                height,
-                spacing,
-                particle_radius,
-                max_particles,
+                density, 
+                width, 
+                height, 
+                spacing, 
+                particle_radius, 
+                max_particles
             ),
         }
     }
