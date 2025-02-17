@@ -1,4 +1,7 @@
 extern crate wasm_bindgen;
+extern crate console_error_panic_hook;
+use std::panic;
+
 use rand::{Rng, RngCore};
 use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
@@ -119,6 +122,7 @@ static mut SIM: BounceSim = BounceSim { areaWidth:2.5f32, areaHeight:1.0f32, bal
 #[wasm_bindgen]
 pub fn init_test_simulation()
 {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     unsafe
     {
         // make some ballz
@@ -147,7 +151,8 @@ fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
         let g = fluid.particle_colour[(index * 3) + 1];
         let b = fluid.particle_colour[(index * 3) + 2];
 
-        draw_circle(1.0, 0.0, 0.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+        draw_circle(r, 0.5, 1.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+
     }
 }
 
@@ -188,7 +193,7 @@ impl SimulationHandler
         if (true)
         {
             self.scene.fluid.simulate(
-                delta_time,
+                self.scene.dt,
                 self.scene.gravity,
                 self.scene.flip_ratio,
                 self.scene.num_pressure_iters,
