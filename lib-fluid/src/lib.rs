@@ -869,26 +869,45 @@ pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool, 
     scene.obstacle_x = mouse_x;
     scene.obstacle_y = mouse_y;
     let obs_rad: f32 = scene.obstacle_radius;
-
-    for i in 0..num_x-2{
-        for j in 0..num_y-2{
-            scene.fluid.s[(i * num_y + j) as usize] = 1.0;
-
-            let dist_x: f32 = (i as f32 + 0.5) * scene.fluid.cell_size - mouse_x;
-            let dist_y: f32 = (j as f32 + 0.5) * scene.fluid.cell_size - mouse_y;
-
-            if dist_x * dist_x + dist_y * dist_y < obs_rad * obs_rad{
-                scene.fluid.s[(i * num_y + j) as usize] = 0.0;
-                scene.fluid.u[(i * num_y + j) as usize] = vel_x;
-                scene.fluid.u[((i+1) * num_y + j) as usize] = vel_x;
-                scene.fluid.u[(i * num_y + j) as usize] = vel_y;
-                scene.fluid.u[(i * num_y + (j+1)) as usize] = vel_y;
-            }
-        }
-    }
+    (vel_x, vel_y) = set_obs_loop(&mut scene.fluid, num_x, num_y, mouse_x, mouse_y, obs_rad, vel_x, vel_y);
+    
     scene.show_obstacle = true;
     scene.obstacle_vel_x = vel_x;
     scene.obstacle_vel_y = vel_y;
+}
+
+/*NOTE: this function is the only one crashing the javascript. 
+It is beacuse of how fluid is accessed in set_obstacle.
+I only made it a function to isolate the issue, so commenting out the call will make the code run. (Not as intended though)*/
+pub fn set_obs_loop(
+    fluid: &mut FlipFluid, 
+    num_x: i32, 
+    num_y: i32, 
+    mouse_x: f32, 
+    mouse_y: f32, 
+    obs_rad: f32, 
+    vel_x: f32, 
+    vel_y: f32
+) -> (f32, f32){
+    for i in 0..num_x-2{
+        for j in 0..num_y-2{
+            
+            fluid.s[(i * num_y + j) as usize] = 1.0;
+
+            let dist_x: f32 = (i as f32 + 0.5) * fluid.cell_size - mouse_x;
+            let dist_y: f32 = (j as f32 + 0.5) * fluid.cell_size - mouse_y;
+
+             if dist_x * dist_x + dist_y * dist_y < obs_rad * obs_rad{
+                
+                fluid.s[(i * num_y + j) as usize] = 0.0;
+                fluid.u[(i * num_y + j) as usize] = vel_x;
+                fluid.u[((i+1) * num_y + j) as usize] = vel_x;
+                fluid.u[(i * num_y + j) as usize] = vel_y;
+                fluid.u[(i * num_y + (j+1)) as usize] = vel_y;
+            }
+        }
+    }
+    return (vel_x, vel_y);
 }
 
 fn main() {
