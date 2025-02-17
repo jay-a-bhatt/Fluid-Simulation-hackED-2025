@@ -1,12 +1,9 @@
 import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
-import {SimWASM} from "./pkg/Fluid_Simulation_hackED_2025.js";
+import {SimulationHandler} from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {ortho, initObjects, updateObjects, updateInstanceValues} from './util.js'
-import {testStruct} from "./pkg/Fluid_Simulation_hackED_2025.js";
-import {printBalls} from "./util.js";
 
 
 // render global state
-
 // function here
 
 const num = 0;
@@ -44,38 +41,76 @@ async function initWebGPU()
     return device;
 }
 
+function initSimulation(simWasmModule)
+{
+    const testCanvasHeight = 1000;
+    const testCanvasWidth = 1000;
+
+    //
+
+    const canvasHeight = testCanvasHeight;
+    const canvasWidth = testCanvasWidth;
+
+    const simHeight = 3.0;
+    const canvasScale = canvasHeight / simHeight;
+    const simWidth = canvasWidth / canvasScale;
+
+    // NOTE(Doesnt change)
+    const tankWidth = 1.0 * simWidth;
+    const tankHeight = 1.0 * simHeight;
+
+    const relWaterHeight = 0.8;
+    const relWaterWidth = 0.6;
+    const density = 1000.0;
+
+    const res = 100;
+    const cellSize = tankHeight / res;
+
+    // Particle Radius is with respect to cell size.
+    const particleRadius = 0.3 * cellSize;
+
+    const dx = 2.0 * particleRadius;
+    const dy = Math.sqrt(3.0) / 2.0 * dx;
+
+    // Number of potential particles on the X axis.
+    const numX = Math.floor((relWaterWidth * tankWidth - 2.0 * cellSize - 2.0 * particleRadius) / dx);
+    // Number of potential particles on the y axis.
+    const numY = Math.floor((relWaterHeight * tankHeight - 2.0 * cellSize - 2.0 * particleRadius) / dy);
+
+    // Maximum possible particles in our simulation.
+    const maxParticles = numX * numY;
+
+    // Create WebAssembly + Rust Simulation Handler
+    const simHandler = new SimulationHandler(
+        numX,
+        numY,
+        density,
+        tankWidth,
+        tankHeight,
+        cellSize,
+        particleRadius,
+        maxParticles
+    );
+
+    // TESTING --------------------------
+    simWasmModule.init_test_simulation();
+    // ----------------------------------
+
+    return simHandler
+}
+
 function main(device, simModule, circleShaderSrc)
 {
     let wasmMemory = new Uint8Array(simModule.memory.buffer);
 
-    // Start the simulation
-    simModule.init_simulation();
+    let simHandler = initSimulation(simModule);
+
     const canvas = document.querySelector('canvas');
     const presentationFmt = navigator.gpu.getPreferredCanvasFormat();
     const context = canvas.getContext('webgpu');
     context.configure({device, format: presentationFmt} )
 
-    const simHeight = 3.0;
-    const canvasScale = canvas.height/simHeight;
-    const simWidth = canvas.width/canvasScale;
 
-    const tankWidth = 1.0 * simWidth;
-    const tankHeight = 1.0 * simHeight;
-    const relativeWaterHeight = 0.8;
-    const relativeWaterWidth = 0.6;
-    const density = 1000.0;
-
-    const res = 100;
-    const spacing = tankHeight / res;
-    const particleRadius = 0.3 * spacing;
-    const dx = 2.0 * particleRadius;
-    const dy = Math.sqrt(3.0) / (2.0 * dx);
-    const numX = Math.floor((relativeWaterWidth * tankWidth - 2.0 * spacing - 2.0 * particleRadius) /dx);
-    const numY =  Math.floor((relativeWaterHeight * tankHeight - 2.0 * spacing - 2.0 * particleRadius) /dy);
-    const maxParticles = numX * numY;
-
-    const testS = new testStruct(6,6);
-    const fluidSim = new SimWASM(density, tankWidth, tankHeight, spacing, particleRadius, maxParticles);
     // Circle Render Data ------
     const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
     if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
@@ -182,8 +217,9 @@ function main(device, simModule, circleShaderSrc)
     function render()
     {
         // Update Simulation State
-        fluidSim.update(0.001);
-       // simModule.update(0.01, testS);
+        simHandler.update(0.001);
+        
+        // simModule.update(0.01, testS);
         // Get pointer to location of instance buffer in wasm memory
         let instanceBufferPtr = simModule.get_instance_buffer_ptr();
         // Get a F32 array view into the buffer
@@ -263,6 +299,7 @@ function mouse_position_y()
 
 const initWasm = async () =>
 {
+    console.log('!');
     // Load Wasm module so we can call Rust functions.
     const wasmModule = await wasmInit("./pkg/Fluid_Simulation_hackED_2025_bg.wasm");
     // Get the webGPU adapter device. (need it for graphics stuff)

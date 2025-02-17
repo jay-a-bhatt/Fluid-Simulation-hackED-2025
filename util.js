@@ -13,14 +13,6 @@ export const rand = (min, max) => {
 
     return min + Math.random() * (max - min);
 };
-let count = 0;
-export function printBalls()
-{
-    console.log(count++);
-
-    // force draw call
-    // reset buffer
-}
 
 export function ortho(left, right, bottom, top, near, far, mat)
 {
@@ -51,8 +43,8 @@ export function initObjects(objArray, numObjects)
     {
         objArray.push(
             {
-                color: new Float32Array([rand(), rand(), rand(), 1.0]),
-                position: new Float32Array([-1 + 2*rand(),-1 + 2*rand()]),
+                color: new Float32Array([1.0, 0.0, 0.0, 1.0]),
+                position: new Float32Array([-1 + rand(),-1 + 2*rand()]),
                 scale: new Float32Array([0.1, 0.1]),
                 velocity: [rand(0.0, 0.0), rand(-0.1, 0.1)]
             }
