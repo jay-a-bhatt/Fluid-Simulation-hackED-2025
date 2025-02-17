@@ -292,7 +292,10 @@ impl FlipFluid {
             );
             let cell_nr: i32 = xi * self.p_num_y + yi;
             self.num_cell_particles[(cell_nr) as usize] -= 1;
-            self.cell_particle_ids[(self.first_cell_particles[(cell_nr) as usize]) as usize] = i;
+            // HACK: Subtract one from index to stop it going out of bounds
+            let mut fcs:usize = self.first_cell_particles[(cell_nr) as usize] as usize;
+            fcs -= 1;
+            self.cell_particle_ids[fcs] = i;
         }
 
         //push particles apart
@@ -338,7 +341,7 @@ impl FlipFluid {
                             self.particle_pos[(2 * i) as usize] -= dx;
                             self.particle_pos[(2 * i + 1) as usize] -= dy;
                             self.particle_pos[(2 * id) as usize] += dx;
-                            self.particle_pos[(2 * id + 1) as usize] -= dy;
+                            self.particle_pos[(2 * id + 1) as usize] += dy;
 
                             // diffuse colours
 
@@ -803,9 +806,9 @@ impl FlipFluid {
 
         for _ in 0..num_sub_steps {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
-            return;
-            if separate_particles { self.push_particles_apart(num_particle_iters); }
+            if separate_particles { self.push_particles_apart(4); }
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
+            return;
             self.transfer_velocities(true, None);
             self.update_particle_density();
             self.solve_incompressibility(num_pressure_iters, dt, over_relaxation, compensate_drift);
