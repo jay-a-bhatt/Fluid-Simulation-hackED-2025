@@ -1,0 +1,9 @@
+[package]
+name = "fluid-macroquad"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+macroquad = "*"
+lib-fluid = {path = "../lib-fluid"}
+libm = "*"
