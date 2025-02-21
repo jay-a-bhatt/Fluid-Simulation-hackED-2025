@@ -30,9 +30,10 @@ function initSimulation(simWasmModule)
     const canvasHeight = testCanvasHeight;
     const canvasWidth = testCanvasWidth;
 
-    const simHeight = 3.0;
+    const simHeight = 5.0;
     const canvasScale = canvasHeight / simHeight;
-    const simWidth = canvasWidth / canvasScale;
+    //const simWidth = canvasWidth / canvasScale;
+    const simWidth = 5.0;
 
     // NOTE(Doesnt change)
     const tankWidth = 1.0 * simWidth;
@@ -150,6 +151,7 @@ function main(device, simModule, shaders)
     let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
     let gridSwitch = document.getElementById("2");
     const infoElem = document.querySelector('#info');
+    let zoom = 3.0;
 
     // MOUSE INPUT
     let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
@@ -165,7 +167,6 @@ function main(device, simModule, shaders)
 
         // Calculate Mouse Position
         const aspect = canvas.width/canvas.height;
-        const zoom = 3.0;
 
         // Create projection and view matrices
         const l = (-aspect/2) * zoom;
@@ -261,6 +262,7 @@ function main(device, simModule, shaders)
     catch { observer.observe(canvas, {box: 'content-box'}) }
 
     window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
+    window.addEventListener("wheel", (event) => {zoom += event.deltaY * 0.002; if (zoom < 0.1) { zoom = 0.1;}});
 
     // MENU INPUT
     let switch_1 = document.getElementById("1"),

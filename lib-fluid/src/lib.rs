@@ -25,8 +25,8 @@ pub struct Scene {
     pub obstacle_radius: f32,
     paused: bool,
     show_obstacle: bool,
-    obstacle_vel_x: f32,
-    obstacle_vel_y: f32,
+    pub obstacle_vel_x: f32,
+    pub obstacle_vel_y: f32,
     show_particles: bool,
     show_grid: bool,
     pub fluid: FlipFluid,
@@ -98,7 +98,7 @@ pub struct FlipFluid {
     particle_density: Vec<f32>,
     particle_rest_density: f32,
 
-    particle_radius: f32,
+    pub particle_radius: f32,
     p_inv_spacing: f32,
     p_num_x: i32,
     p_num_y: i32,
@@ -185,6 +185,8 @@ impl FlipFluid {
         obstacle_x: f32,
         obstacle_y: f32,
         obstacle_radius: f32,
+        obstacle_vel_x: f32,
+        obstacle_vel_y: f32
     ) {
         let h: f32 = 1.0 / self.f_inv_spacing;
         let r: f32 = self.particle_radius as f32;
@@ -205,9 +207,10 @@ impl FlipFluid {
 
             //obstacle collision
 
-            if d2 < min_dist2 {
-                self.particle_vel[(2 * i) as usize] = 0.0; //scene.obstacle_vel_x
-                self.particle_vel[(2 * i + 1) as usize] = 0.0; //scene.obstacle_vel_y
+            if d2 < min_dist2
+            {
+                self.particle_vel[(2 * i) as usize] = obstacle_vel_x;
+                self.particle_vel[(2 * i + 1) as usize] = obstacle_vel_y;
             }
 
             //wall collisions
@@ -334,7 +337,7 @@ impl FlipFluid {
                             self.particle_pos[(2 * id + 1) as usize] += dy;
 
                             // diffuse colours
-
+                            /*
                             for k in 0..3
                             {
                                 let colour0: f32 = self.particle_colour[(3 * i + k) as usize];
@@ -345,6 +348,7 @@ impl FlipFluid {
                                 self.particle_colour[(3 * id + k) as usize] =
                                     colour1 + (colour - colour1) * colour_diffusion_coeff;
                             }
+                            */
                         }
                     }
                 }
@@ -776,6 +780,8 @@ impl FlipFluid {
         separate_particles: bool,
         obstacle_x: f32,
         obstacle_y: f32,
+        obstacle_vel_x: f32,
+        obstacle_vel_y: f32,
         obstacle_radius: f32,
     ) {
         let num_sub_steps = 1;
@@ -785,7 +791,7 @@ impl FlipFluid {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
             if separate_particles { self.push_particles_apart(num_particle_iters); }
 
-            self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
+            self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius, obstacle_vel_x, obstacle_vel_y);
 
             // self.transfer_velocities(true, 0.0);
             self.update_particle_density();
@@ -845,12 +851,13 @@ pub fn setup_grid(fluid: &mut FlipFluid)
     }
 }
 
-pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool, num_x: i32, num_y: i32)
+pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool)
 {
     let mut vel_x: f32 = 0.0;
     let mut vel_y: f32 = 0.0;
 
-    if!reset{
+    if !reset
+    {
         vel_x = (mouse_x - scene.obstacle_x) / scene.dt;
         vel_y = (mouse_y - scene.obstacle_y) / scene.dt;
     }
@@ -858,45 +865,38 @@ pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool, 
     scene.obstacle_x = mouse_x;
     scene.obstacle_y = mouse_y;
     let obs_rad: f32 = scene.obstacle_radius;
-    (vel_x, vel_y) = set_obs_loop(&mut scene.fluid, num_x, num_y, mouse_x, mouse_y, obs_rad, vel_x, vel_y);
-    
-    scene.show_obstacle = true;
-    scene.obstacle_vel_x = vel_x;
-    scene.obstacle_vel_y = vel_y;
-}
+    let mut fluid = &mut scene.fluid;
 
-/*NOTE: this function is the only one crashing the javascript. 
-It is beacuse of how fluid is accessed in set_obstacle.
-I only made it a function to isolate the issue, so commenting out the call will make the code run. (Not as intended though)*/
-pub fn set_obs_loop(
-    fluid: &mut FlipFluid, 
-    num_x: i32, 
-    num_y: i32, 
-    mouse_x: f32, 
-    mouse_y: f32, 
-    obs_rad: f32, 
-    vel_x: f32, 
-    vel_y: f32
-) -> (f32, f32){
-    for i in 0..num_x-2{
-        for j in 0..num_y-2{
-            
-            fluid.s[(i * num_y + j) as usize] = 1.0;
+    for i in 1..fluid.f_num_x-2
+    {
+        for j in 1..fluid.f_num_y-2
+        {
+            // Not confusing at all...
+            let index_1 = (i * fluid.f_num_y + j) as usize;
+            let index_2 = ((i+1) * fluid.f_num_y + j) as usize;
+            let index_3 = (i * fluid.f_num_y + (j+1)) as usize;
 
-            let dist_x: f32 = (i as f32 + 0.5) * fluid.cell_size - mouse_x;
-            let dist_y: f32 = (j as f32 + 0.5) * fluid.cell_size - mouse_y;
+            let dist_x = (i as f32 + 0.5) * fluid.cell_size - mouse_x;
+            let dist_y = (j as f32 + 0.5) * fluid.cell_size - mouse_y;
 
-             if dist_x * dist_x + dist_y * dist_y < obs_rad * obs_rad{
-                
-                fluid.s[(i * num_y + j) as usize] = 0.0;
-                fluid.u[(i * num_y + j) as usize] = vel_x;
-                fluid.u[((i+1) * num_y + j) as usize] = vel_x;
-                fluid.u[(i * num_y + j) as usize] = vel_y;
-                fluid.u[(i * num_y + (j+1)) as usize] = vel_y;
+            fluid.s[index_1] = 1.0;
+
+            if (dist_x * dist_x + dist_y * dist_y <= (obs_rad * obs_rad))
+            {
+                fluid.s[index_1] = 0.0;
+
+                fluid.u[index_1] = vel_x;
+                fluid.u[index_2] = vel_x;
+
+                fluid.v[index_1] = vel_y;
+                fluid.v[index_3] = vel_y;
             }
         }
     }
-    return (vel_x, vel_y);
+
+    scene.show_obstacle = true;
+    scene.obstacle_vel_x = vel_x;
+    scene.obstacle_vel_y = vel_y;
 }
 
 fn main() {

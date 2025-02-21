@@ -150,7 +150,7 @@ impl SimulationHandler
         setup_grid(&mut scene.fluid);
         // TODO: finish this if we have time.
         // params are for mouse_x, mouse_y, and reset
-        //set_obstacle(&mut scene, 3.0, 2.0, true, num_x, num_y);
+        set_obstacle(&mut scene, 3.0, 2.0, true);
 
         return SimulationHandler { scene };
     }
@@ -159,6 +159,9 @@ impl SimulationHandler
     pub fn update(&mut self, delta_time: f32, mouse_x:f32, mouse_y:f32, gravity:f32)
     {
         // TODO: add pausing to scene
+
+        set_obstacle(&mut self.scene, mouse_x, mouse_y, false);
+
         if (true)
         {
             self.scene.fluid.simulate(
@@ -172,11 +175,13 @@ impl SimulationHandler
                 self.scene.separate_particles,
                 self.scene.obstacle_x,
                 self.scene.obstacle_y,
+                self.scene.obstacle_vel_x,
+                self.scene.obstacle_vel_y,
                 self.scene.obstacle_radius
             );
         }
 
-        unsafe { draw_simulation(&self.scene.fluid, 0.018/2.0); }
+        unsafe { draw_simulation(&self.scene.fluid, self.scene.fluid.particle_radius); }
         unsafe { draw_circle(1.0,0.0, 0.0, mouse_x, mouse_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
     }
 }
