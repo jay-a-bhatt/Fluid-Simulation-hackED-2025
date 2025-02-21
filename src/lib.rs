@@ -1,5 +1,6 @@
 extern crate wasm_bindgen;
 extern crate console_error_panic_hook;
+
 use std::panic;
 
 use rand::{Rng, RngCore};
@@ -7,8 +8,6 @@ use wasm_bindgen::prelude::*;
 // BOUNCY BALL SIMULATOR!!!!
 use lib_fluid::*;
 // GRAPHICS ---------------------------------------------------------------
-const MAX_INSTANCES: usize = 16384;
-// NUMBER OF FLOATS PER INSTANCE
 
 #[wasm_bindgen]
 extern "C"
@@ -17,39 +16,81 @@ extern "C"
     fn hello();
 }
 
-const INSTANCE_SIZE_F32: usize = 4+2+2; // FOUR FOR COLOR (R, G, B, A) TWO FOR POSITION (X, Y) TWO FOR SIZE (WIDTH, HEIGHT) 8 TOTAL FLOATS
-static mut INSTANCE_GFX_BUFFER: [f32; MAX_INSTANCES* INSTANCE_SIZE_F32] = [0.0; INSTANCE_SIZE_F32 * MAX_INSTANCES];
-static mut CURRENT_INSTANCE: usize = 0;
-pub fn draw_circle(r: f32, g: f32, b: f32, x: f32, y: f32, s_x: f32, s_y: f32)
+struct InstanceData
 {
+    max_instances: usize,
+    instance_size_F32: usize,
+    current_instance: usize,
+    instance_buffer: Vec<f32>
+}
+static mut CIRCLE_INSTANCE_DATA: InstanceData = InstanceData {max_instances: 0, instance_size_F32: 0, current_instance: 0, instance_buffer: Vec::new() };
+static mut SQUARE_INSTANCE_DATA: InstanceData = InstanceData {max_instances: 0, instance_size_F32: 0, current_instance: 0, instance_buffer: Vec::new() };
+
+#[wasm_bindgen]
+pub fn init_instance_gfx_buffers(maxCircleInstances: usize, maxSquareInstances: usize)
+{
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+
     unsafe
+        {
+            CIRCLE_INSTANCE_DATA.max_instances = maxCircleInstances;
+            CIRCLE_INSTANCE_DATA.instance_size_F32 = 4 + 2 + 2; // FOUR FOR COLOR (R, G, B, A) TWO FOR POSITION (X, Y) TWO FOR SIZE (WIDTH, HEIGHT) 8 TOTAL FLOATS
+            CIRCLE_INSTANCE_DATA.instance_buffer = vec![0.0; CIRCLE_INSTANCE_DATA.max_instances * CIRCLE_INSTANCE_DATA.instance_size_F32];
+            CIRCLE_INSTANCE_DATA.current_instance = 0;
+
+            SQUARE_INSTANCE_DATA.max_instances = maxSquareInstances;
+            SQUARE_INSTANCE_DATA.instance_size_F32 = 4 + 2 + 1; // FOUR FOR COLOR (R, G, B, A) TWO FOR POS (X, Y), 1 FOR SCALE (S)
+            SQUARE_INSTANCE_DATA.instance_buffer = vec![0.0; SQUARE_INSTANCE_DATA.max_instances * SQUARE_INSTANCE_DATA.instance_size_F32];
+            SQUARE_INSTANCE_DATA.current_instance = 0;
+        }
+}
+
+pub fn draw_circle(r: f32, g: f32, b: f32, x: f32, y: f32, s_x: f32, s_y: f32, instanceData: &mut InstanceData)
+{
+    let layout: [f32; 8] = [r, g, b, 1.0, x, y, s_x, s_y];
+    let instance_offset: usize = instanceData.current_instance * instanceData.instance_size_F32; // instance offset corresponds to total # of floats in the buffer
+    for i in 0.. 8
     {
-        let array: [f32; 8] = [r, g, b, 1.0, x, y, s_x, s_y];
-        let instance_offset: usize = CURRENT_INSTANCE * INSTANCE_SIZE_F32; // instance offset corresponds to total # of floats in the buffer
-        for i in 0.. 8
-        {
-            let index = instance_offset + i;
-            INSTANCE_GFX_BUFFER[index] = array[i];
-        }
-        CURRENT_INSTANCE += 1;
-        // RESET BUFFER FOR NOW
-        // TODO(rordon): Force draw call when buffer reaches max capacity.
-        if CURRENT_INSTANCE == MAX_INSTANCES
-        {
-            // force draw call
-            CURRENT_INSTANCE = 0;
-        }
+        let index = instance_offset + i;
+        instanceData.instance_buffer[index] = layout[i];
     }
+    instanceData.current_instance += 1;
+    if instanceData.current_instance == instanceData.max_instances
+    {
+        // TODO(rordon): Force draw call when buffer reaches max capacity.
+        // Wrap around back to instance zero.
+        instanceData.current_instance = 0;
+    }
+}
+pub fn draw_square(r: f32, g: f32, b: f32, x: f32, y: f32, s:f32, data: &mut InstanceData)
+{
+    let layout: [f32; 7] = [r, g, b, 1.0, x, y, s];
+    let instance_offset: usize = data.current_instance * data.instance_size_F32; // instance offset corresponds to total # of floats in the buffer
+    for i in 0.. 7
+    {
+        let index = instance_offset + i;
+        data.instance_buffer[index] = layout[i];
+    }
+    data.current_instance += 1;
+    if data.current_instance == data.max_instances
+    {
+        // TODO(rordon): Force draw call when buffer reaches max capacity.
+        // Wrap around back to instance zero.
+        data.current_instance = 0;
+    }
+}
+
+#[wasm_bindgen]
+pub unsafe fn get_circle_instance_buf_ptr() -> *const f32
+{
+    return CIRCLE_INSTANCE_DATA.instance_buffer.as_ptr();
 }
 #[wasm_bindgen]
-pub fn get_instance_buffer_ptr() -> *const f32 {
-    let p: *const f32;
-    unsafe
-    {
-        p = INSTANCE_GFX_BUFFER.as_ptr();
-    }
-    return p;
+pub unsafe fn get_square_instance_buf_ptr() -> *const f32
+{
+    return SQUARE_INSTANCE_DATA.instance_buffer.as_ptr();
 }
+
 const INSTANCE_DATA_SIZE: usize = 4 + 2 + 2; //4+2+2
 
 // END OF GFX. THAT'S LITERALLY IT. -----------------------------------------------------------------------------
@@ -94,7 +135,7 @@ impl BounceSim {
         }
     }
 
-    fn draw_balls(&mut self)
+    unsafe fn draw_balls(&mut self)
     {
         for ball in self.ballz.iter_mut()
         {
@@ -104,7 +145,8 @@ impl BounceSim {
                         ball.position[0],
                         ball.position[1],
                         ball.size[0],
-                        ball.size[1]
+                        ball.size[1],
+                        &mut CIRCLE_INSTANCE_DATA,
             );
         }
     }
@@ -122,7 +164,6 @@ static mut SIM: BounceSim = BounceSim { areaWidth:2.5f32, areaHeight:1.0f32, bal
 #[wasm_bindgen]
 pub fn init_test_simulation()
 {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
     unsafe
     {
         // make some ballz
@@ -138,9 +179,11 @@ pub fn init_test_simulation()
 
 // ---------------------------------------------------------------------------
 
-fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
+unsafe fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
 {
-    unsafe { CURRENT_INSTANCE = 0 };
+    // Draw particles
+    // Reset Instance Buffer
+    CIRCLE_INSTANCE_DATA.current_instance = 0;
     for i in 0..fluid.num_particles
     {
         let index = i as usize;
@@ -151,8 +194,24 @@ fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
         let g = fluid.particle_colour[(index * 3) + 1];
         let b = fluid.particle_colour[(index * 3) + 2];
 
-        draw_circle(r, 0.5, 1.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0)
+        draw_circle(r, 0.5, 1.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0, &mut CIRCLE_INSTANCE_DATA)
+    }
+    SQUARE_INSTANCE_DATA.current_instance = 0;
+    for x in 0..fluid.f_num_x{
+        for y in 0..fluid.f_num_y
+        {
+            let index = ((x * fluid.f_num_y + y) * 3) as usize;
+            let r = fluid.cell_colour[index + 0];
+            let g = fluid.cell_colour[index + 1];
+            let b = fluid.cell_colour[index + 2];
 
+            draw_square(r, g, b,
+                        (x as f32 + 0.5) * fluid.cell_size,
+                        (y as f32 + 0.5) * fluid.cell_size,
+                        fluid.cell_size * 0.8,
+                        &mut SQUARE_INSTANCE_DATA
+            );
+        }
     }
 }
 
@@ -175,7 +234,7 @@ impl SimulationHandler
             height,
             cell_size,
             particle_radius,
-            max_particles,
+            max_particles
         );
 
         create_particles(&mut scene.fluid, num_x, num_y);
@@ -188,14 +247,14 @@ impl SimulationHandler
     }
 
     #[wasm_bindgen]
-    pub fn update(&mut self, delta_time: f32)
+    pub fn update(&mut self, delta_time: f32, mouse_x:f32, mouse_y:f32, gravity:f32)
     {
         // TODO: add pausing to scene
         if (true)
         {
             self.scene.fluid.simulate(
                 self.scene.dt,
-                self.scene.gravity,
+                gravity,
                 self.scene.flip_ratio,
                 self.scene.num_pressure_iters,
                 self.scene.num_particle_iters,
@@ -208,12 +267,11 @@ impl SimulationHandler
             );
         }
 
-        draw_simulation(&self.scene.fluid, 0.018/2.0);
+        unsafe { draw_simulation(&self.scene.fluid, 0.018/2.0); }
 
         // hello();
         unsafe
         {
-            CURRENT_INSTANCE = 0;
             SIM.integrate_balls(delta_time);
             SIM.handle_ball_wall_collision();
             //SIM.draw_balls();
