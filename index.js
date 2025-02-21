@@ -1,6 +1,16 @@
 import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {SimulationHandler} from "./pkg/Fluid_Simulation_hackED_2025.js";
-import {ortho, initObjects, updateObjects, updateInstanceValues, view} from './util.js'
+import {
+    ortho,
+    initObjects,
+    updateObjects,
+    updateInstanceValues,
+    view,
+    mat4MultV2,
+    getMousePosNDC,
+    mat4Identity,
+    invertMat4, mulMat4
+} from './util.js'
 import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} from './webgpu.js'
 
 
@@ -140,24 +150,24 @@ function main(device, simModule, shaders)
         label: 'main canvas renderer',
         colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
     }
+
     let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
     let gridSwitch = document.getElementById("2");
-    function render()
+    const infoElem = document.querySelector('#info');
+
+    // MOUSE INPUT
+    let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
+    window.addEventListener('mousedown', function(event){mouse_down = 1;});
+    window.addEventListener('mouseup', function(event){mouse_down = 0;});
+
+    let then = 0;
+    function render(now)
     {
-        // Update Simulation State
-        simHandler.update(1.0/60.0, 0, 0, gravitySlider.value);
-        
-        // Get pointer to location of instance buffer in wasm memory
-        let circleInstBufPtr = simModule.get_circle_instance_buf_ptr();
-        let squareInstBufPtr = simModule.get_square_instance_buf_ptr();
+        now *= 0.001;
+        const deltaTime = now - then;
+        then = now;
 
-        // Get a F32 array view into the buffer
-        let circleInstanceBufferF32 = new Float32Array(simModule.memory.buffer, circleInstBufPtr, maxCircleInstances * (4 + 2 + 2));
-        let squareInstanceBufferF32 = new Float32Array(simModule.memory.buffer, squareInstBufPtr, maxSquareInstances * (4 + 2 + 1));
-
-        device.queue.writeBuffer(circleBuffers.instanceBuffer, 0, circleInstanceBufferF32);
-        device.queue.writeBuffer(squareBuffers.instanceBuffer, 0, squareInstanceBufferF32);
-
+        // Calculate Mouse Position
         const aspect = canvas.width/canvas.height;
         const zoom = 3.0;
 
@@ -168,6 +178,28 @@ function main(device, simModule, shaders)
         const b = -t;
         ortho(l, r, b, t, 200, -100, projectionMat);
         view(-aspect/2,-zoom/2.5, viewMat);
+
+        let rect = canvas.getBoundingClientRect();
+
+        let mouse_ndc = getMousePosNDC(mouse_x - rect.left, mouse_y - rect.top, canvas.width, canvas.height);
+        let mouse_world = mat4MultV2(invertMat4(mulMat4(viewMat, projectionMat)), mouse_ndc);
+
+        // Update Simulation State
+        const simStartTime = performance.now();
+        simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value);
+
+        // Get pointer to location of instance buffer in wasm memory
+        let circleInstBufPtr = simModule.get_circle_instance_buf_ptr();
+        let squareInstBufPtr = simModule.get_square_instance_buf_ptr();
+
+        const simTime = performance.now() - simStartTime;
+        // Get a F32 array view into the buffer
+        let circleInstanceBufferF32 = new Float32Array(simModule.memory.buffer, circleInstBufPtr, maxCircleInstances * (4 + 2 + 2));
+        let squareInstanceBufferF32 = new Float32Array(simModule.memory.buffer, squareInstBufPtr, maxSquareInstances * (4 + 2 + 1));
+
+        device.queue.writeBuffer(circleBuffers.instanceBuffer, 0, circleInstanceBufferF32);
+        device.queue.writeBuffer(squareBuffers.instanceBuffer, 0, squareInstanceBufferF32);
+
         for (let i = 0; i < 16; i++)
         {
             uniformValues[i] = projectionMat[i];
@@ -195,15 +227,19 @@ function main(device, simModule, shaders)
         pass.setVertexBuffer(0, squareBuffers.vertexBuffer);
         pass.setVertexBuffer(1, squareBuffers.instanceBuffer);
         pass.setIndexBuffer(squareBuffers.indexBuffer, 'uint32');
-        if (gridSwitch.querySelector('input').checked){
+
+        // Draw Grid if option selected.
+        if (gridSwitch.querySelector('input').checked) {
             pass.drawIndexed(6,maxSquareInstances);
         }
+
         pass.end();
 
         const commandBuffer = encoder.finish();
 
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
+        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms`;
 
         requestAnimationFrame(render);
     }
@@ -228,16 +264,12 @@ function main(device, simModule, shaders)
     try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
     catch { observer.observe(canvas, {box: 'content-box'}) }
 
+    window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
+
     // MENU INPUT
     let switch_1 = document.getElementById("1"),
     switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
     let slider_1 = document.getElementById("slider1");
-
-    // MOUSE INPUT
-    let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
-    window.addEventListener('mousedown', function(event){mouse_down = 1;});
-    window.addEventListener('mouseup', function(event){mouse_down = 0;});
-    window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
 
     /*
     CANVAS VALUE | (canvas.width) x (canvas.height)

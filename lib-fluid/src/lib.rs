@@ -43,9 +43,9 @@ impl Scene {
     ) -> Self {
         Scene {
             gravity: -9.81,
-            dt: 1.0 / 60.0,
+            dt: 1.0 / 120.0,
             flip_ratio: 0.9,
-            num_pressure_iters: 100,
+            num_pressure_iters: 1,
             num_particle_iters: 2,
             frame_nr: 0,
             over_relaxation: 1.9,
@@ -784,15 +784,16 @@ impl FlipFluid {
         for _ in 0..num_sub_steps {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
             if separate_particles { self.push_particles_apart(num_particle_iters); }
+
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius);
-            //self.transfer_velocities(true, 0.0);
+
+            // self.transfer_velocities(true, 0.0);
+            self.update_particle_density();
             //self.solve_incompressibility(num_pressure_iters, sdt, over_relaxation, compensate_drift);
             //self.transfer_velocities(false, 0.9);
-
-            self.update_particle_density();
         }
 
-        self.update_particle_colours();
+        //self.update_particle_colours();
         self.update_cell_colours();
     }
 }

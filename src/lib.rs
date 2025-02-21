@@ -268,8 +268,8 @@ impl SimulationHandler
         }
 
         unsafe { draw_simulation(&self.scene.fluid, 0.018/2.0); }
+        unsafe { draw_circle(1.0,0.0, 0.0, mouse_x, mouse_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
 
-        // hello();
         unsafe
         {
             SIM.integrate_balls(delta_time);
