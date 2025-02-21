@@ -72,10 +72,6 @@ function initSimulation(simWasmModule)
         maxParticles
     );
 
-    // TESTING --------------------------
-    simWasmModule.init_test_simulation();
-    // ----------------------------------
-
     return simHandler
 }
 

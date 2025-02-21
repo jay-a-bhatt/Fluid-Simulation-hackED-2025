@@ -1,12 +1,9 @@
 extern crate wasm_bindgen;
 extern crate console_error_panic_hook;
-
 use std::panic;
-
-use rand::{Rng, RngCore};
 use wasm_bindgen::prelude::*;
-// BOUNCY BALL SIMULATOR!!!!
 use lib_fluid::*;
+
 // GRAPHICS ---------------------------------------------------------------
 
 #[wasm_bindgen]
@@ -79,7 +76,6 @@ pub fn draw_square(r: f32, g: f32, b: f32, x: f32, y: f32, s:f32, data: &mut Ins
         data.current_instance = 0;
     }
 }
-
 #[wasm_bindgen]
 pub unsafe fn get_circle_instance_buf_ptr() -> *const f32
 {
@@ -90,94 +86,6 @@ pub unsafe fn get_square_instance_buf_ptr() -> *const f32
 {
     return SQUARE_INSTANCE_DATA.instance_buffer.as_ptr();
 }
-
-const INSTANCE_DATA_SIZE: usize = 4 + 2 + 2; //4+2+2
-
-// END OF GFX. THAT'S LITERALLY IT. -----------------------------------------------------------------------------
-
-struct Ball
-{
-    position: [f32; 2], // X Y
-    color:    [f32; 3], // R G B
-    size:     [f32; 2], // Width Height
-    velocity: [f32; 2]  // VelocityX VelocityY
-}
-struct BounceSim
-{
-    areaWidth: f32,
-    areaHeight: f32,
-    ballz: Vec<Ball>
-}
-
-impl BounceSim {
-    fn integrate_balls(&mut self, delta_time: f32)
-    {
-        for i in 0..self.ballz.len()
-        {
-            self.ballz[i].position[0] += self.ballz[i].velocity[0] * delta_time;
-            self.ballz[i].position[1] += self.ballz[i].velocity[1] * delta_time;
-        }
-    }
-
-    fn handle_ball_wall_collision(&mut self)
-    {
-        for i in 0..self.ballz.len()
-        {
-            // check if out of bounds on x axis
-            if self.ballz[i].position[0] > (self.areaWidth/2.0) || self.ballz[i].position[0] < -(self.areaWidth/2.0)
-            {
-                self.ballz[i].velocity[0] *= -1.0;
-            }
-            if self.ballz[i].position[1] > (self.areaHeight/2.0) || self.ballz[i].position[1] < -(self.areaHeight/2.0)
-            {
-                self.ballz[i].velocity[1] *= -1.0;
-            }
-        }
-    }
-
-    unsafe fn draw_balls(&mut self)
-    {
-        for ball in self.ballz.iter_mut()
-        {
-            draw_circle(ball.color[0],
-                        ball.color[1],
-                        ball.color[2],
-                        ball.position[0],
-                        ball.position[1],
-                        ball.size[0],
-                        ball.size[1],
-                        &mut CIRCLE_INSTANCE_DATA,
-            );
-        }
-    }
-}
-
-// Generate a random number from 0.0 to 1.0.
-pub fn randNormF32() -> f32
-{
-    let r: f32 = rand::thread_rng().gen_range(0.0..1.0);
-    return r;
-}
-// BOUNCY BALL TEST SIMULATION.
-static mut SIM: BounceSim = BounceSim { areaWidth:2.5f32, areaHeight:1.0f32, ballz: Vec::new() };
-
-#[wasm_bindgen]
-pub fn init_test_simulation()
-{
-    unsafe
-    {
-        // make some ballz
-        for i in 1..100
-        {
-            SIM.ballz.push(Ball{ position: [(SIM.areaWidth / 2.0)*randNormF32(), (SIM.areaHeight / 2.0)*randNormF32()],
-                                       color:[randNormF32(), randNormF32(), randNormF32()],
-                                       size: [0.1,0.1],
-                                       velocity: [(randNormF32()*2.0)-1.0, (randNormF32()*2.0)-1.0]});
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 
 unsafe fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
 {
@@ -214,11 +122,12 @@ unsafe fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
         }
     }
 }
+// END OF UNSAFE GFX ZONE. -----------------------------------------------------------------------------
 
 #[wasm_bindgen]
 pub struct SimulationHandler
 {
-    scene: lib_fluid::Scene,
+    scene: lib_fluid::Scene
 }
 
 #[wasm_bindgen]
@@ -269,12 +178,5 @@ impl SimulationHandler
 
         unsafe { draw_simulation(&self.scene.fluid, 0.018/2.0); }
         unsafe { draw_circle(1.0,0.0, 0.0, mouse_x, mouse_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
-
-        unsafe
-        {
-            SIM.integrate_balls(delta_time);
-            SIM.handle_ball_wall_collision();
-            //SIM.draw_balls();
-        }
     }
 }
