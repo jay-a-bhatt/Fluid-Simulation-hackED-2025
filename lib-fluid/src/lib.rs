@@ -356,74 +356,95 @@ impl FlipFluid {
         }
     }
 
-    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: f32) {
+    fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: f32)
+    {
         let n: f32 = self.f_num_y as f32;
         let h: f32 = self.cell_size;
         let h1: f32 = self.f_inv_spacing;
         let h2: f32 = h * 0.5;
 
-        if to_grid {
+        if to_grid
+        {
+            // Make a copy of the grid's previous velocities
             self.prev_u.copy_from_slice(&self.u);
             self.prev_v.copy_from_slice(&self.v);
 
             self.du.fill(0.0);
-            self.dv.fill(0.0);
             self.u.fill(0.0);
             self.v.fill(0.0);
+            self.dv.fill(0.0);
 
-            for i in 0..self.f_num_cells {
-                if self.s[i as usize] == 0.0 {
-                    self.cell_type[i as usize] = var::SOLID_CELL;
-                } else {
-                    self.cell_type[i as usize] = var::AIR_CELL;
+            for i in 0..self.f_num_cells
+            {
+                let ind = i as usize;
+                if self.s[ind] == 0.0
+                {
+                    self.cell_type[ind] = var::SOLID_CELL;
+                }
+                else
+                {
+                    self.cell_type[ind] = var::AIR_CELL;
                 }
             }
 
-            for i in 0..self.num_particles {
-                let x: f32 = self.particle_pos[(2 * i) as usize];
+            for i in 0..self.num_particles
+            {
+                // X and Y position of particle.
+                let x: f32 = self.particle_pos[(2 * i + 0) as usize];
                 let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+
+                // X and Y index of particle
                 let xi: f32 = clampF32((x * h1).floor(), 0.0, (self.f_num_x - 1) as f32);
                 let yi: f32 = clampF32((y * h1).floor(), 0.0, (self.f_num_y - 1) as f32);
-                let cell_nr: f32 = xi * n + yi;
 
-                if self.cell_type[cell_nr as usize] == var::AIR_CELL {
-                    self.cell_type[cell_nr as usize] = var::FLUID_CELL;
+                let cell_nr = (xi * n + yi) as usize;
+
+                // If the particle is inside an air cell, make it a fluid cell.
+                if self.cell_type[cell_nr] == var::AIR_CELL
+                {
+                    self.cell_type[cell_nr] = var::FLUID_CELL;
                 }
             }
         }
 
-        for component in 0..2 {
+        // Transfer by x and y components 0 for x and 1 for y
+        for component in 0..2
+        {
             let dx: f32;
             let dy: f32;
 
-            let mut f: Vec<f32>;
-            let prev_f: Vec<f32>;
-            let mut d: Vec<f32>;
+            let mut f: &mut Vec<f32>;
+            let mut prev_f: &mut Vec<f32>;
+            let mut d: &mut Vec<f32>;
 
-            if component == 0 {
+            if component == 0
+            {
                 dx = 0.0;
                 dy = h2;
-
                 // Someone left borrowing errors here, so imma just .clone() them
                 // mfs for now and fix it later - Jay
-                f = self.u.clone();
-                prev_f = self.prev_u.clone();
-                d = self.du.clone();
-            } else {
+                // It is now later - Rordon
+                f = &mut self.u;
+                prev_f = &mut self.prev_u;
+                d = &mut self.du;
+            }
+            else
+            {
                 dx = h2;
                 dy = 0.0;
 
-                f = self.v.clone();
-                prev_f = self.prev_v.clone();
-                d = self.dv.clone();
+                f = &mut self.v;
+                prev_f = &mut self.prev_v;
+                d = &mut self.dv;
             }
 
-            for i in 0..self.num_particles {
-                let mut x: f32 = self.particle_pos[(2 * i) as usize];
+            for i in 0..self.num_particles
+            {
+                let mut x: f32 = self.particle_pos[(2 * i + 0) as usize];
                 let mut y: f32 = self.particle_pos[(2 * i + 1) as usize];
 
-                x = clampF32(x, h, (self.f_num_x as f32 - 1.0) * h) as f32;
-                y = clampF32(y, h, (self.f_num_y as f32 - 1.0) * h) as f32;
+                x = clampF32(x, h, (self.f_num_x as f32 - 1.0) * h);
+                y = clampF32(y, h, (self.f_num_y as f32 - 1.0) * h);
 
                 let x0: f32 = f32::min(((x - dx) * h1).floor(), self.f_num_x as f32 - 2.0);
                 let tx: f32 = ((x - dx) - x0 * h) * h1;
@@ -441,47 +462,46 @@ impl FlipFluid {
                 let d2: f32 = tx * ty;
                 let d3: f32 = sx * ty;
 
-                let nr0: f32 = x0 * n + y0;
-                let nr1: f32 = x1 * n + y0;
-                let nr2: f32 = x1 * n + y1;
-                let nr3: f32 = x0 * n + y1;
+                let nr0 =(x0 * n + y0) as usize;
+                let nr1 =(x1 * n + y0) as usize;
+                let nr2 =(x1 * n + y1) as usize;
+                let nr3 =(x0 * n + y1) as usize;
 
-                if to_grid {
+                if to_grid
+                {
                     let pv: f32 = self.particle_vel[(2 * i + component) as usize];
-                    f[nr0 as usize] += pv * d0;
-                    d[nr0 as usize] += d0;
-                    f[nr1 as usize] += pv * d1;
-                    d[nr1 as usize] += d1;
-                    f[nr2 as usize] += pv * d2;
-                    d[nr2 as usize] += d2;
-                    f[nr3 as usize] += pv * d3;
-                    d[nr3 as usize] += d3;
-                } else {
+                    f[nr0] += pv * d0;
+                    d[nr0] += d0;
+                    f[nr1] += pv * d1;
+                    d[nr1] += d1;
+                    f[nr2] += pv * d2;
+                    d[nr2] += d2;
+                    f[nr3] += pv * d3;
+                    d[nr3] += d3;
+                }
+                else
+                {
                     let mut offset: f32 = 1.0;
+                    if component == 0 { offset = n; }
+
                     let mut valid0: f32 = 0.0;
                     let mut valid1: f32 = 0.0;
                     let mut valid2: f32 = 0.0;
                     let mut valid3: f32 = 0.0;
-                    if component == 0 {
-                        offset = n;
-                    }
-                    if self.cell_type[nr0 as usize] != var::AIR_CELL
-                        || self.cell_type[nr0 as usize - offset as usize] != var::AIR_CELL
+
+                    if self.cell_type[nr0] != var::AIR_CELL || self.cell_type[nr0 - offset as usize] != var::AIR_CELL
                     {
                         valid0 = 1.0;
                     }
-                    if self.cell_type[nr1 as usize] != var::AIR_CELL
-                        || self.cell_type[nr1 as usize - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr1] != var::AIR_CELL || self.cell_type[nr1 - offset as usize] != var::AIR_CELL
                     {
                         valid1 = 1.0;
                     }
-                    if self.cell_type[nr2 as usize] != var::AIR_CELL
-                        || self.cell_type[nr2 as usize - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr2] != var::AIR_CELL || self.cell_type[nr2 - offset as usize] != var::AIR_CELL
                     {
                         valid2 = 1.0;
                     }
-                    if self.cell_type[nr3 as usize] != var::AIR_CELL
-                        || self.cell_type[nr3 as usize - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr3] != var::AIR_CELL || self.cell_type[nr3 - offset as usize] != var::AIR_CELL
                     {
                         valid3 = 1.0;
                     }
@@ -489,54 +509,50 @@ impl FlipFluid {
                     let v: f32 = self.particle_vel[(2 * i + component) as usize];
                     let d: f32 = valid0 * d0 + valid1 * d1 + valid2 * d2 + valid3 * d3;
 
-                    if d > 0.0 {
-                        let pic_v: f32 = (valid0 * d0 * f[nr0 as usize]
-                            + valid1 * d1 * f[nr1 as usize]
-                            + valid2 * d2 * f[nr2 as usize]
-                            + valid3 * d3 * f[nr3 as usize])
-                            / d;
-                        let corr: f32 = (valid0 * d0 * (f[nr0 as usize]) - prev_f[nr0 as usize]
-                            + valid1 * d1 * (f[nr1 as usize])
-                            - prev_f[nr1 as usize]
-                            + valid2 * d2 * (f[nr2 as usize])
-                            - prev_f[nr2 as usize]
-                            + valid3 * d3 * (f[nr3 as usize])
-                            - prev_f[nr3 as usize])
-                            / d;
-                        let flip_v: f32 = v + corr;
+                    if d > 0.0
+                    {
+                        let pic_v: f32 = (
+                              valid0 * d0 * f[nr0]
+                            + valid1 * d1 * f[nr1]
+                            + valid2 * d2 * f[nr2]
+                            + valid3 * d3 * f[nr3]
+                        ) / d;
+                        let corr: f32 = (
+                              valid0 * d0 * (f[nr0]) - prev_f[nr0]
+                            + valid1 * d1 * (f[nr1]) - prev_f[nr1]
+                            + valid2 * d2 * (f[nr2]) - prev_f[nr2]
+                            + valid3 * d3 * (f[nr3]) - prev_f[nr3]
+                        ) / d;
 
+                        let flip_v: f32 = v + corr;
                         self.particle_vel[(2 * i + component) as usize] = (1.0 - flip_ratio) * pic_v + flip_ratio * flip_v;
                     }
                 }
             }
-            if to_grid {
-                for i in 0..f.len() {
-                    if d[i as usize] > 0.0 {
-                        f[i as usize] /= d[i as usize];
-                    }
+
+            if to_grid
+            {
+                for i in 0..f.len()
+                {
+                    if d[i] > 0.0 { f[i] /= d[i]; }
                 }
 
                 // restore solid cells
 
-                for i in 0..self.f_num_x {
-                    for j in 0..self.f_num_y {
-                        let solid =
-                            self.cell_type[(i as f32 * n + j as f32) as usize] == var::SOLID_CELL;
-                        if solid
-                            || (i > 0
-                            && self.cell_type[((i - 1) as f32 * n + j as f32) as usize]
-                            == var::SOLID_CELL)
+                for i in 0..self.f_num_x
+                {
+                    for j in 0..self.f_num_y
+                    {
+                        let index = (i as f32 * n + j as f32) as usize;
+                        let solid = self.cell_type[index] == var::SOLID_CELL;
+
+                        if solid || (i > 0 && self.cell_type[((i - 1) as f32 * n + j as f32) as usize] == SOLID_CELL)
                         {
-                            self.u[(i as f32 * n + j as f32) as usize] =
-                                self.prev_u[(i as f32 * n + j as f32) as usize];
+                            self.u[index] = self.prev_u[index];
                         }
-                        if solid
-                            || (j > 0
-                            && self.cell_type[(i as f32 * n + j as f32 - 1.0) as usize]
-                            == var::SOLID_CELL)
+                        if solid || (j > 0 && self.cell_type[index - 1] == var::SOLID_CELL)
                         {
-                            self.v[(i as f32 * n + j as f32) as usize] =
-                                self.prev_v[(i as f32 * n + j as f32) as usize];
+                            self.v[index] = self.prev_v[index];
                         }
                     }
                 }
@@ -606,71 +622,68 @@ impl FlipFluid {
             }
         }
     }
-
-    fn solve_incompressibility(
-        &mut self,
-        num_iters: i32,
-        dt: f32,
-        over_relaxation: f32,
-        mut compensate_drift: bool,
-    ) {
+    fn solve_incompressibility(&mut self, num_iters: i32, dt: f32, over_relaxation: f32, compensate_drift: bool)
+    {
         self.p.fill(0.0);
-        self.prev_u = self.u.clone(); // clone() might use more memory
-        self.prev_v = self.v.clone();
 
-        let n: i32 = self.f_num_y;
-        let cp: f32 = self.density * self.cell_size / dt;
+        self.prev_u.copy_from_slice(&self.u);
+        self.prev_v.copy_from_slice(&self.v);
 
-        for i in 0..self.f_num_cells {
+        let n:  i32 = self.f_num_y;
+        let cp: f32 = (self.density * self.cell_size) / dt;
+
+        /* NOTE(rordon): these values are never used in reference sim
+        for i in 0..self.f_num_cells
+        {
             let u: f32 = self.u[i as usize];
             let v: f32 = self.v[i as usize];
         }
+        */
 
-        for _ in 0..num_iters {
-            for i in 1..self.f_num_x - 1 {
-                for j in 1..self.f_num_y - 1 {
-                    if self.cell_type[((i * n) + j) as usize] != var::FLUID_CELL {
+        for _ in 0..num_iters
+        {
+            for i in 1..self.f_num_x - 1
+            {
+                for j in 1..self.f_num_y - 1
+                {
+                    if self.cell_type[((i * n) + j) as usize] != FLUID_CELL
+                    {
                         continue;
                     }
 
-                    let center: i32 = i * n + j;
-                    let left: i32 = (i - 1) * n + j;
-                    let right: i32 = (i + 1) * n + j;
-                    let bottom: i32 = i * n + j - 1;
-                    let top: i32 = i * n + j + 1;
+                    // Indices
+                    let center= ((i * n) + j) as usize;
+                    let left  = ((i - 1) * n + j) as usize;
+                    let right = ((i + 1) * n + j) as usize;
+                    let bottom= (i * n + j - 1) as usize;
+                    let top   = (i * n + j + 1) as usize;
 
-                    let s: f32 = self.s[center as usize];
-                    let sx0: f32 = self.s[left as usize];
-                    let sx1: f32 = self.s[right as usize];
-                    let sy0: f32 = self.s[bottom as usize];
-                    let sy1: f32 = self.s[top as usize];
+                    let s:   f32 = self.s[center];
+                    let sx0: f32 = self.s[left];
+                    let sx1: f32 = self.s[right];
+                    let sy0: f32 = self.s[bottom];
+                    let sy1: f32 = self.s[top];
+
                     let s: f32 = sx0 + sx1 + sy0 + sy1;
-                    if s == 0.0 {
-                        continue;
-                    }
+                    if s == 0.0 { continue; }
 
-                    let mut div: f32 = self.u[right as usize] - self.u[center as usize]
-                        + self.v[top as usize]
-                        - self.v[center as usize];
+                    let mut div: f32 = self.u[right] - self.u[center] + self.v[top] - self.v[center];
 
                     if self.particle_rest_density > 0.0 && compensate_drift
                     {
                         let k: f32 = 1.0;
-                        let compression = self.particle_density[(i * n + j) as usize]
-                            - self.particle_rest_density;
-                        if compression > 0.0 {
-                            div = div - k * compression;
-                        }
+                        let compression = self.particle_density[center] - self.particle_rest_density;
+                        if compression > 0.0 { div = div - k * compression; }
                     }
 
                     let mut p: f32 = -div / s;
                     p *= over_relaxation;
-                    self.p[center as usize] += cp * p;
+                    self.p[center] += cp * p;
 
-                    self.u[center as usize] -= sx0 * p;
-                    self.u[right as usize] += sx1 * p;
-                    self.v[center as usize] -= sy0 * p;
-                    self.v[top as usize] += sy1 * p;
+                    self.u[center] -= sx0 * p;
+                    self.u[right]  += sx1 * p;
+                    self.v[center] -= sy0 * p;
+                    self.v[top]    += sy1 * p;
                 }
             }
         }
@@ -793,10 +806,10 @@ impl FlipFluid {
 
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius, obstacle_vel_x, obstacle_vel_y);
 
-            // self.transfer_velocities(true, 0.0);
+            self.transfer_velocities(true, 0.0);
             self.update_particle_density();
-            //self.solve_incompressibility(num_pressure_iters, sdt, over_relaxation, compensate_drift);
-            //self.transfer_velocities(false, 0.9);
+            self.solve_incompressibility(num_pressure_iters, sdt, over_relaxation, compensate_drift);
+            self.transfer_velocities(false, 0.9);
         }
 
         //self.update_particle_colours();
@@ -897,8 +910,4 @@ pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool)
     scene.show_obstacle = true;
     scene.obstacle_vel_x = vel_x;
     scene.obstacle_vel_y = vel_y;
-}
-
-fn main() {
-    println!("Hello, world!");
 }

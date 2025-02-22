@@ -146,3 +146,4 @@ export function createSquareBuffers(device, maxSquareInstances)
 
     return {vertexBuffer: vertexBuf, indexBuffer: indexBuf, instanceBuffer: instBuf, layout: vertexLayout}
 }
+

@@ -10,9 +10,8 @@ use lib_fluid::*;
 extern "C"
 {
     #[wasm_bindgen(js_namespace = exports)]
-    fn hello();
+    fn drawObjects(objectID:i32, count:i32);
 }
-
 struct InstanceData
 {
     max_instances: usize,
@@ -150,7 +149,7 @@ impl SimulationHandler
         setup_grid(&mut scene.fluid);
         // TODO: finish this if we have time.
         // params are for mouse_x, mouse_y, and reset
-        set_obstacle(&mut scene, 3.0, 2.0, true);
+        set_obstacle(&mut scene, 2.0, 2.0, true);
 
         return SimulationHandler { scene };
     }
@@ -161,7 +160,6 @@ impl SimulationHandler
         // TODO: add pausing to scene
 
         set_obstacle(&mut self.scene, mouse_x, mouse_y, false);
-
         if (true)
         {
             self.scene.fluid.simulate(
@@ -181,7 +179,13 @@ impl SimulationHandler
             );
         }
 
+    }
+
+    #[wasm_bindgen]
+    pub fn render(&self)
+    {
         unsafe { draw_simulation(&self.scene.fluid, self.scene.fluid.particle_radius); }
-        unsafe { draw_circle(1.0,0.0, 0.0, mouse_x, mouse_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
+        unsafe { draw_circle(1.0,0.0, 0.0, self.scene.obstacle_x, self.scene.obstacle_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
+        //drawObjects(0, 0);
     }
 }

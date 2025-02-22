@@ -17,10 +17,28 @@ import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} fr
 // render global state
 // function here
 
-const num = 0;
-window.exports = {
-    hello: function () { console.log(num); }
-};
+let context = {wasmModule: null, device: null}
+
+let drawCount = 0;
+window.exports =
+{
+    drawObjects: function drawObject(objectID, count)
+    {
+        if (objectID == 12)
+        {
+            drawCount += count
+            // Requires simModule, device,
+            // Get the buffer ptr,
+            //
+
+            // Get Current Pass
+            // Set Pipeline
+            // Bind Buffers
+            // Call Draw Function
+            // Profit
+        }
+    }
+}
 
 function initSimulation(simWasmModule)
 {
@@ -148,15 +166,22 @@ function main(device, simModule, shaders)
         colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
     }
 
+    // MENU INPUT
+    let switch_1 = document.getElementById("1"),
+        switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
+    let slider_1 = document.getElementById("slider1");
+
     let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
     let gridSwitch = document.getElementById("2");
     const infoElem = document.querySelector('#info');
     let zoom = 3.0;
 
     // MOUSE INPUT
-    let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
+    let mouse_x = 0, mouse_y = 0, mouse_down = 0; // mouse_down = {0: false; 1: true}
     window.addEventListener('mousedown', function(event){mouse_down = 1;});
     window.addEventListener('mouseup', function(event){mouse_down = 0;});
+    window.addEventListener('mousemove', (event) => { mouse_x = event.clientX; mouse_y = event.clientY;} );
+    window.addEventListener("wheel", (event) => {zoom += event.deltaY * 0.002; if (zoom < 0.1) { zoom = 0.1;}});
 
     let then = 0;
     function render(now)
@@ -181,15 +206,21 @@ function main(device, simModule, shaders)
         let mouse_ndc = getMousePosNDC(mouse_x - rect.left, mouse_y - rect.top, canvas.width, canvas.height);
         let mouse_world = mat4MultV2(invertMat4(mulMat4(viewMat, projectionMat)), mouse_ndc);
 
+        // Renderer Start Pass
+
         // Update Simulation State
         const simStartTime = performance.now();
         simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value);
+        const simTime = performance.now() - simStartTime;
 
+
+        simHandler.render();
+
+        // Renderer End Pass
         // Get pointer to location of instance buffer in wasm memory
         let circleInstBufPtr = simModule.get_circle_instance_buf_ptr();
         let squareInstBufPtr = simModule.get_square_instance_buf_ptr();
 
-        const simTime = performance.now() - simStartTime;
         // Get a F32 array view into the buffer
         let circleInstanceBufferF32 = new Float32Array(simModule.memory.buffer, circleInstBufPtr, maxCircleInstances * (4 + 2 + 2));
         let squareInstanceBufferF32 = new Float32Array(simModule.memory.buffer, squareInstBufPtr, maxSquareInstances * (4 + 2 + 1));
@@ -236,7 +267,7 @@ function main(device, simModule, shaders)
 
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
-        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms`;
+        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms\n draws: ${drawCount}`;
 
         requestAnimationFrame(render);
     }
@@ -261,13 +292,6 @@ function main(device, simModule, shaders)
     try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
     catch { observer.observe(canvas, {box: 'content-box'}) }
 
-    window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
-    window.addEventListener("wheel", (event) => {zoom += event.deltaY * 0.002; if (zoom < 0.1) { zoom = 0.1;}});
-
-    // MENU INPUT
-    let switch_1 = document.getElementById("1"),
-    switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
-    let slider_1 = document.getElementById("slider1");
 
     /*
     CANVAS VALUE | (canvas.width) x (canvas.height)
@@ -280,9 +304,9 @@ function main(device, simModule, shaders)
 
 const initWasm = async () =>
 {
-    console.log('!');
     // Load Wasm module so we can call Rust functions.
     const wasmModule = await wasmInit("./pkg/Fluid_Simulation_hackED_2025_bg.wasm");
+
     // Get the webGPU adapter device. (need it for graphics stuff)
     const device = await initWebGPU();
     // Fetch the circle shader .wgsl file and turn it into a string for GPU compiling.
