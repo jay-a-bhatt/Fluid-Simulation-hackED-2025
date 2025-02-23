@@ -10,6 +10,13 @@ fn clampF32(x: f32, min: f32, max: f32) -> f32 {
     else { return x; }
 }
 
+fn clampI32(x: i32, min: i32, max: i32) -> i32
+{
+    if (x < min) { return min; }
+    else if (x > max) { return max; }
+    else { return x; }
+}
+
 pub struct Scene {
     pub gravity: f32,
     pub dt: f32,
@@ -239,7 +246,7 @@ impl FlipFluid {
         }
     }
 
-    fn push_particles_apart(&mut self, num_iters: i32) {
+    fn push_particles_apart(&mut self, num_iters: i32) -> i32 {
         let colour_diffusion_coeff: f32 = 0.001;
 
         // count particles per cell
@@ -251,9 +258,11 @@ impl FlipFluid {
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
 
             let xi: f32 = clampF32((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x - 1) as f32);
+            let xi: i32 = clampI32((x * self.p_inv_spacing).floor() as i32, 0, self.p_num_x - 1);
             let yi: f32 = clampF32((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y - 1) as f32);
+            let yi: i32 = clampI32((y * self.p_inv_spacing).floor() as i32, 0, self.p_num_y - 1);
 
-            let cell_index = (xi * self.p_num_y as f32 + yi) as usize;
+            let cell_index = (xi * self.p_num_y + yi) as usize;
             self.num_cell_particles[cell_index] += 1;
         }
 
@@ -288,7 +297,7 @@ impl FlipFluid {
 
         let min_dist: f32 = 2.0 * self.particle_radius;
         let min_dist_2: f32 = min_dist * min_dist;
-
+        let mut checks = 0;
         for _ in 0..num_iters
         {
             for i in 0..self.num_particles
@@ -296,8 +305,8 @@ impl FlipFluid {
                 let px: f32 = self.particle_pos[(2 * i + 0) as usize];
                 let py: f32 = self.particle_pos[(2 * i + 1) as usize];
 
-                let pxi: i32 = (px * self.p_inv_spacing).floor() as i32;
-                let pyi: i32 = (py * self.p_inv_spacing).floor() as i32;
+                let pxi = (px * self.p_inv_spacing).floor() as i32;
+                let pyi = (py * self.p_inv_spacing).floor() as i32;
 
                 let x0: i32 = cmp::max(pxi - 1, 0);
                 let y0: i32 = cmp::max(pyi - 1, 0);
@@ -308,16 +317,15 @@ impl FlipFluid {
                 {
                     for yi in y0..=y1
                     {
-                        let cell_nr: i32 = xi * self.p_num_y + yi;
-                        let first: i32 = self.first_cell_particles[cell_nr as usize];
-                        let last: i32  = self.first_cell_particles[(cell_nr + 1) as usize];
+                        let cell_nr: usize = (xi * self.p_num_y + yi) as usize;
+                        let first: i32 = self.first_cell_particles[cell_nr + 0];
+                        let last: i32  = self.first_cell_particles[cell_nr + 1];
 
                         for j in first..last
                         {
                             let id: i32 = self.cell_particle_ids[j as usize];
-
                             if id == i { continue; }
-
+                            checks += 1;
                             let qx: f32 = self.particle_pos[(2 * id + 0) as usize];
                             let qy: f32 = self.particle_pos[(2 * id + 1) as usize];
 
@@ -325,12 +333,13 @@ impl FlipFluid {
                             let mut dy: f32 = qy - py;
                             let d2: f32 = (dx * dx) + (dy * dy);
 
-                            if d2 > min_dist_2 || d2 == 0.0 {  continue;  }
+                            if (d2 > min_dist_2) || d2 == 0.0 {  continue;  }
 
                             let d: f32 = sqrtf(d2);
-                            let s: f32 = 0.5 * (min_dist - d) / d;
+                            let s: f32 = (0.5 * (min_dist - d)) / d;
                             dx *= s;
                             dy *= s;
+
                             self.particle_pos[(2 * i  + 0) as usize] -= dx;
                             self.particle_pos[(2 * i  + 1) as usize] -= dy;
                             self.particle_pos[(2 * id + 0) as usize] += dx;
@@ -354,6 +363,7 @@ impl FlipFluid {
                 }
             }
         }
+        return checks;
     }
 
     fn transfer_velocities(&mut self, to_grid: bool, flip_ratio: f32)
@@ -681,7 +691,7 @@ impl FlipFluid {
                     {
                         let k: f32 = 1.0;
                         let compression = self.particle_density[center] - self.particle_rest_density;
-                        if compression > 0.0 { div = div - k * compression; }
+                        if compression > 0.0 { div = div - (k * compression); }
                     }
 
                     let mut p: f32 = -div / s;
@@ -804,24 +814,28 @@ impl FlipFluid {
         obstacle_vel_x: f32,
         obstacle_vel_y: f32,
         obstacle_radius: f32,
-    ) {
+    ) -> i32 {
         let num_sub_steps = 1;
         let sdt = dt / num_sub_steps as f32;
-
+        let mut num_checks = 0;
         for _ in 0..num_sub_steps {
             self.integrate_particles(sdt, gravity); // NOTE(rordon): THIS IS GOOD!
-            if separate_particles { self.push_particles_apart(num_particle_iters); }
+            if separate_particles
+            {
+                num_checks = self.push_particles_apart(num_particle_iters);
+            }
 
             self.handle_particle_collisions(obstacle_x, obstacle_y, obstacle_radius, obstacle_vel_x, obstacle_vel_y);
 
             self.transfer_velocities(true, 0.0);
             self.update_particle_density();
             self.solve_incompressibility(num_pressure_iters, sdt, over_relaxation, compensate_drift);
-            self.transfer_velocities(false, 0.9);
+            self.transfer_velocities(false, flip_ratio);
         }
 
         //self.update_particle_colours();
         self.update_cell_colours();
+        return num_checks
     }
 }
 
@@ -857,7 +871,7 @@ pub fn setup_grid(fluid: &mut FlipFluid)
         for y in 0..fluid.f_num_y // Rows
         {
             let mut state = 1.0; // Default fluid state
-            if (x == 0 || x == fluid.f_num_x - 1 || y == 0) { state = 0.0; }
+            //if (x == 0 || x == fluid.f_num_x - 1 || y == 0) { state = 0.0; }
 
             let cell_index = (x * fluid.f_num_y + y) as usize;
             fluid.s[cell_index] = state;
@@ -900,11 +914,12 @@ pub fn set_obstacle(scene: &mut Scene, mouse_x: f32, mouse_y: f32, reset: bool)
             let dist_x = (i as f32 + 0.5) * fluid.cell_size - mouse_x;
             let dist_y = (j as f32 + 0.5) * fluid.cell_size - mouse_y;
 
-            fluid.s[index_1] = 1.0;
+            // HACK: Fix velocity bug by disabling solid cells on obstacle pos.
+            //fluid.s[index_1] = 1.0;
 
             if (dist_x * dist_x + dist_y * dist_y <= (obs_rad * obs_rad))
             {
-                fluid.s[index_1] = 0.0;
+                //fluid.s[index_1] = 0.0;
 
                 fluid.u[index_1] = vel_x;
                 fluid.u[index_2] = vel_x;

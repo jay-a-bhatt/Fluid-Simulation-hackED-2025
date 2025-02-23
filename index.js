@@ -20,6 +20,7 @@ import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} fr
 let context = {wasmModule: null, device: null}
 
 let drawCount = 0;
+let numChecks = 0;
 window.exports =
 {
     drawObjects: function drawObject(objectID, count)
@@ -37,7 +38,9 @@ window.exports =
             // Call Draw Function
             // Profit
         }
-    }
+    },
+
+    updateChecks: function updateChecks(checks) { numChecks = checks}
 }
 
 function initSimulation(simWasmModule)
@@ -163,14 +166,15 @@ function main(device, simModule, shaders)
 
     const renderPassDescriptor = {
         label: 'main canvas renderer',
-        colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
+        colorAttachments: [ {clearValue: [0.15,0.15, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
     }
 
     // MENU INPUT
     let switch_1 = document.getElementById("1"),
-        switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
-    let slider_1 = document.getElementById("slider1");
+        switch_3 = document.getElementById("3"),
+        switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
 
+    let flipRatioSlider= document.getElementById("slider1");
     let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
     let gridSwitch = document.getElementById("2");
     const infoElem = document.querySelector('#info');
@@ -202,15 +206,15 @@ function main(device, simModule, shaders)
         view(-aspect/2,-zoom/2.5, viewMat);
 
         let rect = canvas.getBoundingClientRect();
-
-        let mouse_ndc = getMousePosNDC(mouse_x - rect.left, mouse_y - rect.top, canvas.width, canvas.height);
+        let mouse_viewport = [mouse_x - rect.left, mouse_y - rect.top];
+        let mouse_ndc = getMousePosNDC(mouse_viewport[0],mouse_viewport[1], rect.width, rect.height);
         let mouse_world = mat4MultV2(invertMat4(mulMat4(viewMat, projectionMat)), mouse_ndc);
 
         // Renderer Start Pass
 
         // Update Simulation State
         const simStartTime = performance.now();
-        simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value);
+        simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value, flipRatioSlider.value);
         const simTime = performance.now() - simStartTime;
 
 
@@ -267,7 +271,7 @@ function main(device, simModule, shaders)
 
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
-        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms\n draws: ${drawCount}`;
+        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms\n draws: ${drawCount}\n checks: ${numChecks}`;
 
         requestAnimationFrame(render);
     }

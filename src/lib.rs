@@ -11,6 +11,9 @@ extern "C"
 {
     #[wasm_bindgen(js_namespace = exports)]
     fn drawObjects(objectID:i32, count:i32);
+    #[wasm_bindgen(js_namespace = exports, js_name = updateChecks)]
+    fn update_checks(checks:i32);
+
 }
 struct InstanceData
 {
@@ -155,17 +158,17 @@ impl SimulationHandler
     }
 
     #[wasm_bindgen]
-    pub fn update(&mut self, delta_time: f32, mouse_x:f32, mouse_y:f32, gravity:f32)
+    pub fn update(&mut self, delta_time: f32, mouse_x:f32, mouse_y:f32, gravity:f32, flip_ratio:f32)
     {
         // TODO: add pausing to scene
 
         set_obstacle(&mut self.scene, mouse_x, mouse_y, false);
         if (true)
         {
-            self.scene.fluid.simulate(
+            let num_checks = self.scene.fluid.simulate(
                 self.scene.dt,
                 gravity,
-                self.scene.flip_ratio,
+                flip_ratio,
                 self.scene.num_pressure_iters,
                 self.scene.num_particle_iters,
                 self.scene.over_relaxation,
@@ -177,6 +180,8 @@ impl SimulationHandler
                 self.scene.obstacle_vel_y,
                 self.scene.obstacle_radius
             );
+
+            update_checks(num_checks);
         }
 
     }
