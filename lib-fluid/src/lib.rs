@@ -253,8 +253,8 @@ impl FlipFluid {
             let xi: f32 = clampF32((x * self.p_inv_spacing).floor(), 0.0, (self.p_num_x - 1) as f32);
             let yi: f32 = clampF32((y * self.p_inv_spacing).floor(), 0.0, (self.p_num_y - 1) as f32);
 
-            let cell_index: f32 = xi * self.p_num_y as f32 + yi;
-            self.num_cell_particles[(cell_index) as usize] += 1;
+            let cell_index = (xi * self.p_num_y as f32 + yi) as usize;
+            self.num_cell_particles[cell_index] += 1;
         }
 
         //partial sums
@@ -263,10 +263,10 @@ impl FlipFluid {
 
         for i in 0..self.p_num_cells
         {
-            first += self.num_cell_particles[(i) as usize];
-            self.first_cell_particles[(i) as usize] = first;
+            first += self.num_cell_particles[i as usize];
+            self.first_cell_particles[i as usize] = first;
         }
-        self.first_cell_particles[(self.p_num_cells) as usize] = first; //guard
+        self.first_cell_particles[self.p_num_cells as usize] = first; //guard
 
         // fill particles into cells
         for i in 0..self.num_particles
@@ -309,7 +309,7 @@ impl FlipFluid {
                     for yi in y0..=y1
                     {
                         let cell_nr: i32 = xi * self.p_num_y + yi;
-                        let first: i32 = self.first_cell_particles[(cell_nr) as usize];
+                        let first: i32 = self.first_cell_particles[cell_nr as usize];
                         let last: i32  = self.first_cell_particles[(cell_nr + 1) as usize];
 
                         for j in first..last
@@ -331,8 +331,8 @@ impl FlipFluid {
                             let s: f32 = 0.5 * (min_dist - d) / d;
                             dx *= s;
                             dy *= s;
-                            self.particle_pos[(2 * i + 0) as usize] -= dx;
-                            self.particle_pos[(2 * i + 1) as usize] -= dy;
+                            self.particle_pos[(2 * i  + 0) as usize] -= dx;
+                            self.particle_pos[(2 * i  + 1) as usize] -= dy;
                             self.particle_pos[(2 * id + 0) as usize] += dx;
                             self.particle_pos[(2 * id + 1) as usize] += dy;
 
@@ -481,27 +481,27 @@ impl FlipFluid {
                 }
                 else
                 {
-                    let mut offset: f32 = 1.0;
-                    if component == 0 { offset = n; }
+                    let mut offset:usize = 1;
+                    if component == 0 { offset = n as usize; }
 
                     let mut valid0: f32 = 0.0;
                     let mut valid1: f32 = 0.0;
                     let mut valid2: f32 = 0.0;
                     let mut valid3: f32 = 0.0;
 
-                    if self.cell_type[nr0] != var::AIR_CELL || self.cell_type[nr0 - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr0] != var::AIR_CELL || self.cell_type[nr0 - offset] != var::AIR_CELL
                     {
                         valid0 = 1.0;
                     }
-                    if self.cell_type[nr1] != var::AIR_CELL || self.cell_type[nr1 - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr1] != var::AIR_CELL || self.cell_type[nr1 - offset] != var::AIR_CELL
                     {
                         valid1 = 1.0;
                     }
-                    if self.cell_type[nr2] != var::AIR_CELL || self.cell_type[nr2 - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr2] != var::AIR_CELL || self.cell_type[nr2 - offset] != var::AIR_CELL
                     {
                         valid2 = 1.0;
                     }
-                    if self.cell_type[nr3] != var::AIR_CELL || self.cell_type[nr3 - offset as usize] != var::AIR_CELL
+                    if self.cell_type[nr3] != var::AIR_CELL || self.cell_type[nr3 - offset] != var::AIR_CELL
                     {
                         valid3 = 1.0;
                     }
@@ -518,10 +518,10 @@ impl FlipFluid {
                             + valid3 * d3 * f[nr3]
                         ) / d;
                         let corr: f32 = (
-                              valid0 * d0 * (f[nr0]) - prev_f[nr0]
-                            + valid1 * d1 * (f[nr1]) - prev_f[nr1]
-                            + valid2 * d2 * (f[nr2]) - prev_f[nr2]
-                            + valid3 * d3 * (f[nr3]) - prev_f[nr3]
+                              valid0 * d0 * (f[nr0] - prev_f[nr0])
+                            + valid1 * d1 * (f[nr1] - prev_f[nr1])
+                            + valid2 * d2 * (f[nr2] - prev_f[nr2])
+                            + valid3 * d3 * (f[nr3] - prev_f[nr3])
                         ) / d;
 
                         let flip_v: f32 = v + corr;
@@ -532,27 +532,35 @@ impl FlipFluid {
 
             if to_grid
             {
+                // No idea what this is..,
                 for i in 0..f.len()
                 {
-                    if d[i] > 0.0 { f[i] /= d[i]; }
+                    if d[i] > 0.0
+                    {
+                        f[i] /= d[i];
+                    }
                 }
 
-                // restore solid cells
-
+                // Restore solid cells whatever that means
                 for i in 0..self.f_num_x
                 {
                     for j in 0..self.f_num_y
                     {
-                        let index = (i as f32 * n + j as f32) as usize;
-                        let solid = self.cell_type[index] == var::SOLID_CELL;
+                        let ny = self.f_num_y; // Number of cells on y axis.
+                        let center= (i * ny + j) as usize; // Index of center cell
+                        let left  = ((i - 1) * ny + j) as usize;
+                        let bottom= (i * ny + (j - 1)) as usize;
 
-                        if solid || (i > 0 && self.cell_type[((i - 1) as f32 * n + j as f32) as usize] == SOLID_CELL)
+                        let isSolidCell = self.cell_type[center] == SOLID_CELL;
+
+                        if isSolidCell || (i > 0 && self.cell_type[left] == SOLID_CELL)
                         {
-                            self.u[index] = self.prev_u[index];
+                            self.u[center] = self.prev_u[center];
                         }
-                        if solid || (j > 0 && self.cell_type[index - 1] == var::SOLID_CELL)
+
+                        if isSolidCell || (j > 0 && self.cell_type[bottom] == SOLID_CELL)
                         {
-                            self.v[index] = self.prev_v[index];
+                            self.v[center] = self.prev_v[center];
                         }
                     }
                 }
@@ -729,7 +737,7 @@ impl FlipFluid {
             if self.cell_type[i as usize] == SOLID_CELL
             {
                 let index: usize = 3 * i as usize;
-                self.cell_colour[index + 0] = 1.0;
+                self.cell_colour[index + 0] = 0.5;
                 self.cell_colour[index + 1] = 0.5;
                 self.cell_colour[index + 2] = 0.5;
             }

@@ -48,10 +48,10 @@ function initSimulation(simWasmModule)
     const canvasHeight = testCanvasHeight;
     const canvasWidth = testCanvasWidth;
 
-    const simHeight = 5.0;
+    const simHeight = 3.0;
     const canvasScale = canvasHeight / simHeight;
     //const simWidth = canvasWidth / canvasScale;
-    const simWidth = 5.0;
+    const simWidth = 3.0;
 
     // NOTE(Doesnt change)
     const tankWidth = 1.0 * simWidth;
