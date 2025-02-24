@@ -101,7 +101,7 @@ unsafe fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
         let g = fluid.particle_colour[(index * 3) + 1];
         let b = fluid.particle_colour[(index * 3) + 2];
 
-        draw_circle(r, 0.5, 1.0, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0, &mut CIRCLE_INSTANCE_DATA)
+        draw_circle(r, g, b, pos_x, pos_y, particle_radius * 2.0, particle_radius * 2.0, &mut CIRCLE_INSTANCE_DATA)
     }
     SQUARE_INSTANCE_DATA.current_instance = 0;
     for x in 0..fluid.f_num_x{
@@ -199,7 +199,6 @@ impl SimulationHandler
     {
         unsafe { draw_simulation(&self.scene.fluid, self.scene.fluid.particle_radius); }
         unsafe { draw_circle(1.0,0.0, 0.0, self.scene.obstacle_x, self.scene.obstacle_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
-        //drawObjects(0, 0);
     }
 
     #[wasm_bindgen]

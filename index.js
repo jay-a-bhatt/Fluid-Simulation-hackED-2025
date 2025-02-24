@@ -200,7 +200,7 @@ function main(device, simModule, shaders)
         const t = zoom/2;
         const b = -t;
         ortho(l, r, b, t, 200, -100, projectionMat);
-        view(-aspect/2,-zoom/2.5, viewMat);
+        view(-1.5,-1.5, viewMat);
 
         let rect = canvas.getBoundingClientRect();
         let mouse_viewport = [mouse_x - rect.left, mouse_y - rect.top];

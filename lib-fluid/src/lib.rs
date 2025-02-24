@@ -160,7 +160,7 @@ impl FlipFluid {
             max_particles,
 
             particle_pos: vec![0.0; 2 * max_particles as usize],
-            particle_colour: vec![0.0; 3 * max_particles as usize],
+            particle_colour: vec![1.0; 3 * max_particles as usize],
             particle_vel: vec![0.0; 2 * max_particles as usize],
             particle_density: vec![0.0; f_num_cells as usize],
             particle_rest_density: 0.0,
@@ -711,31 +711,37 @@ impl FlipFluid {
     fn update_particle_colours(&mut self) {
         let h1: f32 = self.f_inv_spacing;
 
-        for i in 0..self.num_particles {
+        for i in 0..self.num_particles
+        {
             let s: f32 = 0.01;
+            let offset = (3 * i) as usize;
 
-            self.particle_colour[(3 * i) as usize] =
-                (clampF32(self.particle_colour[(3 * i) as usize] - s, 0.0, 1.0)) as f32;
-            self.particle_colour[(3 * i + 1) as usize] =
-                (clampF32(self.particle_colour[(3 * i + 1) as usize] - s, 0.0, 1.0)) as f32;
-            self.particle_colour[(3 * i + 2) as usize] =
-                (clampF32(self.particle_colour[(3 * i + 2) as usize] - s, 0.0, 1.0)) as f32;
+            self.particle_colour[offset + 0] = clampF32(self.particle_colour[offset + 0] - s, 0.0, 1.0);
+            self.particle_colour[offset + 1] = clampF32(self.particle_colour[offset + 1] - s, 0.0, 1.0);
+            self.particle_colour[offset + 2] = clampF32(self.particle_colour[offset + 2] + s, 0.0, 1.0);
 
-            let x: f32 = self.particle_pos[(2 * i) as usize];
+            let x: f32 = self.particle_pos[(2 * i + 0) as usize];
             let y: f32 = self.particle_pos[(2 * i + 1) as usize];
+
             let xi: f32 = clampF32((x * h1).floor(), 1.0, (self.f_num_x - 1) as f32);
             let yi: f32 = clampF32((y * h1).floor(), 1.0, (self.f_num_y - 1) as f32);
-            let cell_nr: f32 = xi * self.f_num_y as f32 + yi;
+
+            let cell_nr:usize  = (xi * self.f_num_y as f32 + yi) as usize;
 
             let d0: f32 = self.particle_rest_density;
 
-            if d0 > 0.0 {
-                let rel_density: f32 = self.particle_density[(cell_nr) as usize] / d0;
-                if rel_density < 0.7 {
+            // HACK: Particle density doesnt work rn
+            let d0: f32 = 3.09;
+
+            if d0 > 0.0
+            {
+                let rel_density: f32 = self.particle_density[cell_nr] / d0;
+                if rel_density < 0.7
+                {
                     let s: f32 = 0.8;
-                    self.particle_colour[(3 * i) as usize] = s;
-                    self.particle_colour[(3 * i + 1) as usize] = s;
-                    self.particle_colour[(3 * i + 2) as usize] = 1.0;
+                    self.particle_colour[offset + 0] = s;
+                    self.particle_colour[offset + 1] = s;
+                    self.particle_colour[offset + 2] = 1.0;
                 }
             }
         }
@@ -834,7 +840,7 @@ impl FlipFluid {
             self.transfer_velocities(false, flip_ratio);
         }
 
-        //self.update_particle_colours();
+        self.update_particle_colours();
         self.update_cell_colours();
         return num_checks
     }
@@ -872,7 +878,9 @@ pub fn setup_grid(fluid: &mut FlipFluid)
         for y in 0..fluid.f_num_y // Rows
         {
             let mut state = 1.0; // Default fluid state
-            //if (x == 0 || x == fluid.f_num_x - 1 || y == 0) { state = 0.0; }
+
+            // HACK: Disabled solid cells on grid to avoid weird velocity behavior
+            // if (x == 0 || x == fluid.f_num_x - 1 || y == 0) { state = 0.0; }
 
             let cell_index = (x * fluid.f_num_y + y) as usize;
             fluid.s[cell_index] = state;
