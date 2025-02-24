@@ -1,4 +1,4 @@
-import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
+import wasmInit, {DebugInfo} from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {SimulationHandler} from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {
     ortho,
@@ -20,7 +20,6 @@ import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} fr
 let context = {wasmModule: null, device: null}
 
 let drawCount = 0;
-let numChecks = 0;
 window.exports =
 {
     drawObjects: function drawObject(objectID, count)
@@ -38,9 +37,7 @@ window.exports =
             // Call Draw Function
             // Profit
         }
-    },
-
-    updateChecks: function updateChecks(checks) { numChecks = checks}
+    }
 }
 
 function initSimulation(simWasmModule)
@@ -217,6 +214,7 @@ function main(device, simModule, shaders)
         simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value, flipRatioSlider.value);
         const simTime = performance.now() - simStartTime;
 
+        const info = simHandler.get_debug_info();
 
         simHandler.render();
 
@@ -264,14 +262,18 @@ function main(device, simModule, shaders)
         if (gridSwitch.querySelector('input').checked) {
             pass.drawIndexed(6,maxSquareInstances);
         }
-
         pass.end();
 
         const commandBuffer = encoder.finish();
 
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
-        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\nsim: ${simTime.toFixed(1)}ms\n draws: ${drawCount}\n checks: ${numChecks}`;
+        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\n`
+            + `sim: ${simTime.toFixed(1)}ms\n`
+            + `draws: ${drawCount}\n`
+            + `collision checks:\n${info.collision_checks.toLocaleString()}\n`
+            + `rest density: ${info.rest_density.toFixed(3)}\n`
+            + `num particles: ${info.num_particles}`;
 
         requestAnimationFrame(render);
     }

@@ -11,9 +11,6 @@ extern "C"
 {
     #[wasm_bindgen(js_namespace = exports)]
     fn drawObjects(objectID:i32, count:i32);
-    #[wasm_bindgen(js_namespace = exports, js_name = updateChecks)]
-    fn update_checks(checks:i32);
-
 }
 struct InstanceData
 {
@@ -129,7 +126,16 @@ unsafe fn draw_simulation(fluid: &FlipFluid, particle_radius: f32)
 #[wasm_bindgen]
 pub struct SimulationHandler
 {
-    scene: lib_fluid::Scene
+    scene: lib_fluid::Scene,
+    num_checks: i32,
+}
+
+#[wasm_bindgen]
+pub struct DebugInfo
+{
+    pub rest_density: f32,
+    pub collision_checks: i32,
+    pub num_particles: i32
 }
 
 #[wasm_bindgen]
@@ -154,7 +160,7 @@ impl SimulationHandler
         // params are for mouse_x, mouse_y, and reset
         set_obstacle(&mut scene, 2.0, 2.0, true);
 
-        return SimulationHandler { scene };
+        return SimulationHandler { scene, num_checks:0 };
     }
 
     #[wasm_bindgen]
@@ -165,7 +171,7 @@ impl SimulationHandler
         set_obstacle(&mut self.scene, mouse_x, mouse_y, false);
         if (true)
         {
-            let num_checks = self.scene.fluid.simulate(
+            self.num_checks = self.scene.fluid.simulate(
                 self.scene.dt,
                 gravity,
                 flip_ratio,
@@ -180,8 +186,6 @@ impl SimulationHandler
                 self.scene.obstacle_vel_y,
                 self.scene.obstacle_radius
             );
-
-            update_checks(num_checks);
         }
 
     }
@@ -192,5 +196,14 @@ impl SimulationHandler
         unsafe { draw_simulation(&self.scene.fluid, self.scene.fluid.particle_radius); }
         unsafe { draw_circle(1.0,0.0, 0.0, self.scene.obstacle_x, self.scene.obstacle_y, 0.05, 0.05, &mut CIRCLE_INSTANCE_DATA); }
         //drawObjects(0, 0);
+    }
+
+    #[wasm_bindgen]
+    pub fn get_debug_info(&self) -> DebugInfo
+    {
+       return DebugInfo {rest_density: self.scene.fluid.particle_rest_density,
+                         collision_checks: self.num_checks,
+                         num_particles: self.scene.fluid.num_particles
+       };
     }
 }

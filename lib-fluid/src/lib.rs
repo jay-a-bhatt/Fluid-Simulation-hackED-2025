@@ -103,7 +103,7 @@ pub struct FlipFluid {
     pub particle_colour: Vec<f32>,
     particle_vel: Vec<f32>,
     particle_density: Vec<f32>,
-    particle_rest_density: f32,
+    pub particle_rest_density: f32,
 
     pub particle_radius: f32,
     p_inv_spacing: f32,
