@@ -19,7 +19,7 @@ import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} fr
 
 let context = {wasmModule: null, device: null}
 
-let drawCount = 0;
+let drawCount = 1;
 window.exports =
 {
     drawObjects: function drawObject(objectID, count)
@@ -169,7 +169,7 @@ function main(device, simModule, shaders)
     // MENU INPUT
     let switch_1 = document.getElementById("1"),
         switch_3 = document.getElementById("3"),
-        switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
+        sepParticlesSwitch = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
 
     let flipRatioSlider= document.getElementById("slider1");
     let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
@@ -211,7 +211,7 @@ function main(device, simModule, shaders)
 
         // Update Simulation State
         const simStartTime = performance.now();
-        simHandler.update(deltaTime, mouse_world[0], mouse_world[1], gravitySlider.value, flipRatioSlider.value);
+        simHandler.update(mouse_world[0], mouse_world[1], gravitySlider.value, flipRatioSlider.value, sepParticlesSwitch.querySelector('input').checked);
         const simTime = performance.now() - simStartTime;
 
         const info = simHandler.get_debug_info();
@@ -269,11 +269,15 @@ function main(device, simModule, shaders)
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
         infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\n`
-            + `sim: ${simTime.toFixed(1)}ms\n`
-            + `draws: ${drawCount}\n`
+            + `sim time: ${simTime.toFixed(1)}ms\n`
+            + `draw calls: ${drawCount}\n`
             + `collision checks:\n${info.collision_checks.toLocaleString()}\n`
-            + `rest density: ${info.rest_density.toFixed(3)}\n`
-            + `num particles: ${info.num_particles}`;
+            + `\nFluid:\nrest density: ${info.rest_density.toFixed(3)}\n`
+            + `num particles: ${info.num_particles}\n`
+            + `p num cells: ${info.p_num_cells}\n`
+            + `p num x: ${info.p_num_x}\n`
+            + `p num y: ${info.p_num_y}\n`
+            + `p inv spacing: ${info.p_inv_spacing.toFixed(2)}`;
 
         requestAnimationFrame(render);
     }

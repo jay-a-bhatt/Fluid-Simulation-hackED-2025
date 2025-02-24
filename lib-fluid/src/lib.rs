@@ -106,10 +106,10 @@ pub struct FlipFluid {
     pub particle_rest_density: f32,
 
     pub particle_radius: f32,
-    p_inv_spacing: f32,
-    p_num_x: i32,
-    p_num_y: i32,
-    p_num_cells: i32,
+    pub p_inv_spacing: f32,
+    pub p_num_x: i32,
+    pub p_num_y: i32,
+    pub p_num_cells: i32,
 
     num_cell_particles: Vec<i32>,
     first_cell_particles: Vec<i32>,
@@ -295,7 +295,7 @@ impl FlipFluid {
 
         // push particles apart
 
-        let min_dist: f32 = 2.0 * self.particle_radius;
+        let min_dist: f32   = 2.0 * self.particle_radius;
         let min_dist_2: f32 = min_dist * min_dist;
         let mut checks = 0;
         for _ in 0..num_iters
@@ -323,11 +323,12 @@ impl FlipFluid {
 
                         for j in first..last
                         {
-                            let id: i32 = self.cell_particle_ids[j as usize];
-                            if id == i { continue; }
+                            let id: usize = self.cell_particle_ids[j as usize] as usize;
+                            if id == i as usize { continue; }
+
                             checks += 1;
-                            let qx: f32 = self.particle_pos[(2 * id + 0) as usize];
-                            let qy: f32 = self.particle_pos[(2 * id + 1) as usize];
+                            let qx: f32 = self.particle_pos[(2 * id + 0)];
+                            let qy: f32 = self.particle_pos[(2 * id + 1)];
 
                             let mut dx: f32 = qx - px;
                             let mut dy: f32 = qy - py;
@@ -342,8 +343,8 @@ impl FlipFluid {
 
                             self.particle_pos[(2 * i  + 0) as usize] -= dx;
                             self.particle_pos[(2 * i  + 1) as usize] -= dy;
-                            self.particle_pos[(2 * id + 0) as usize] += dx;
-                            self.particle_pos[(2 * id + 1) as usize] += dy;
+                            self.particle_pos[2 * id + 0] += dx;
+                            self.particle_pos[2 * id + 1] += dy;
 
                             // diffuse colours
                             /*

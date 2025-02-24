@@ -135,7 +135,11 @@ pub struct DebugInfo
 {
     pub rest_density: f32,
     pub collision_checks: i32,
-    pub num_particles: i32
+    pub num_particles: i32,
+    pub p_num_cells: i32,
+    pub p_num_x: i32,
+    pub p_num_y: i32,
+    pub p_inv_spacing: f32
 }
 
 #[wasm_bindgen]
@@ -164,7 +168,7 @@ impl SimulationHandler
     }
 
     #[wasm_bindgen]
-    pub fn update(&mut self, delta_time: f32, mouse_x:f32, mouse_y:f32, gravity:f32, flip_ratio:f32)
+    pub fn update(&mut self, mouse_x:f32, mouse_y:f32, gravity:f32, flip_ratio:f32, separate_particles: bool)
     {
         // TODO: add pausing to scene
 
@@ -179,7 +183,7 @@ impl SimulationHandler
                 self.scene.num_particle_iters,
                 self.scene.over_relaxation,
                 self.scene.compensate_drift,
-                self.scene.separate_particles,
+                separate_particles,
                 self.scene.obstacle_x,
                 self.scene.obstacle_y,
                 self.scene.obstacle_vel_x,
@@ -203,7 +207,11 @@ impl SimulationHandler
     {
        return DebugInfo {rest_density: self.scene.fluid.particle_rest_density,
                          collision_checks: self.num_checks,
-                         num_particles: self.scene.fluid.num_particles
+                         num_particles: self.scene.fluid.num_particles,
+                         p_num_cells: self.scene.fluid.p_num_cells,
+                         p_num_x: self.scene.fluid.p_num_x,
+                         p_num_y: self.scene.fluid.p_num_y,
+                         p_inv_spacing: self.scene.fluid.p_inv_spacing
        };
     }
 }
