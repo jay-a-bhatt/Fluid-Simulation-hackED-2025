@@ -9,9 +9,9 @@
 
 ## About
 
-This project was created for HackED 2025 and since been expanded upon. It is a Rust + Wasm implementation of a PIC/FLIP fluid simulation created by [Matthias Müller](https://youtu.be/XmzBREkK8kY?si=5a8RqvdLVUWC9ErL). The simulation is interactable and features different sliders and toggles to change the behavior of the fluid.
+This project was created for the HackED 2025 hackathon and since been expanded upon. It is a Rust + Wasm implementation of a PIC/FLIP fluid simulation created by [Matthias Müller](https://youtu.be/XmzBREkK8kY?si=5a8RqvdLVUWC9ErL). The simulation is interactable and features different sliders and toggles to change the behavior of the fluid.
 <div align="center">
-<img aligne = "center" src="./res/demo.gif"/>
+<img aligne = "center" src="./res/fluid_demo.gif"/>
 </div>
 
 ## 📝 Prerequisites
