@@ -1,44 +1,43 @@
-import wasmInit from "./pkg/Fluid_Simulation_hackED_2025.js";
+import wasmInit, {DebugInfo} from "./pkg/Fluid_Simulation_hackED_2025.js";
 import {SimulationHandler} from "./pkg/Fluid_Simulation_hackED_2025.js";
-import {ortho, initObjects, updateObjects, updateInstanceValues, view} from './util.js'
+import {
+    ortho,
+    initObjects,
+    updateObjects,
+    updateInstanceValues,
+    view,
+    mat4MultV2,
+    getMousePosNDC,
+    mat4Identity,
+    invertMat4, mulMat4
+} from './util.js'
+import {initWebGPU, compileShaders, createCircleBuffers, createSquareBuffers} from './webgpu.js'
 
 
 // render global state
 // function here
 
-const num = 0;
-window.exports = {
-    hello: function () { console.log(num); }
-};
+let context = {wasmModule: null, device: null}
 
-
-async function initWebGPU()
+let drawCount = 1;
+window.exports =
 {
-    if (!navigator.gpu)
+    drawObjects: function drawObject(objectID, count)
     {
-        console.error('This browser does not support WebGPU');
-        return;
-    }
-    const adapter = await navigator.gpu?.requestAdapter();
-    if (!adapter)
-    {
-        console.error('No WebGPU adapters found');
-        return;
-    }
-
-    let device = await adapter.requestDevice();
-    device.lost.then((info) =>
-    {
-        console.error(`WebGPU device was lost: ${info.message}`)
-        device = null;
-        if (info.reason != 'destroyed')
+        if (objectID == 12)
         {
-            initWebGPU();
-        }
-    });
+            drawCount += count
+            // Requires simModule, device,
+            // Get the buffer ptr,
+            //
 
-    console.log("WebGPU Initialized Successfully");
-    return device;
+            // Get Current Pass
+            // Set Pipeline
+            // Bind Buffers
+            // Call Draw Function
+            // Profit
+        }
+    }
 }
 
 function initSimulation(simWasmModule)
@@ -46,14 +45,13 @@ function initSimulation(simWasmModule)
     const testCanvasHeight = 1000;
     const testCanvasWidth = 1000;
 
-    //
-
     const canvasHeight = testCanvasHeight;
     const canvasWidth = testCanvasWidth;
 
     const simHeight = 3.0;
     const canvasScale = canvasHeight / simHeight;
-    const simWidth = canvasWidth / canvasScale;
+    //const simWidth = canvasWidth / canvasScale;
+    const simWidth = 3.0;
 
     // NOTE(Doesnt change)
     const tankWidth = 1.0 * simWidth;
@@ -93,178 +91,193 @@ function initSimulation(simWasmModule)
         maxParticles
     );
 
-    // TESTING --------------------------
-    simWasmModule.init_test_simulation();
-    // ----------------------------------
-
     return simHandler
 }
 
-function main(device, simModule, circleShaderSrc)
+function main(device, simModule, shaders)
 {
     let wasmMemory = new Uint8Array(simModule.memory.buffer);
 
     let simHandler = initSimulation(simModule);
+    const maxCircleInstances = 16384;
+    const maxSquareInstances = 4096 * 3;
+    simModule.init_instance_gfx_buffers(maxCircleInstances, maxSquareInstances);
 
     const canvas = document.querySelector('canvas');
     const presentationFmt = navigator.gpu.getPreferredCanvasFormat();
     const context = canvas.getContext('webgpu');
     context.configure({device, format: presentationFmt} )
 
-
-    // Circle Render Data ------
-    const circleShaderModule = device.createShaderModule( {label: 'Circle Shader Module', code: circleShaderSrc})
-    if (!circleShaderModule) { console.error("Failed to create circle shader module!"); }
-
-    const maxObjects = 16384;
     const circleObjs = [];
     const projectionMat = new Float32Array(16);
     const viewMat = new Float32Array(16);
 
-    initObjects(circleObjs, maxObjects);
-    console.log(circleObjs);
-    // Vertex Data
-    const numVertices = 4;
-    const numTris = 2;
-    const vertexData = new Float32Array([
-        //  x     y
-        -0.5, -0.5,   0, 0, // BL
-        0.5, -0.5,   1, 0,  // BR
-        0.5,  0.5,   1, 1,  // TR
-        -0.5,  0.5,   0, 1  // TL
-    ]);
+    initObjects(circleObjs, maxCircleInstances);
 
-    // 3--2       2
-    // | /       /|
-    // |/       / |
-    // 0       0--1
-    const indexData = new Uint32Array([0, 1, 2,   0, 2, 3]);
+    const circleBuffers = createCircleBuffers(device, maxCircleInstances);
+    // TODO: fill this out
+    const squareBuffers = createSquareBuffers(device, maxSquareInstances);
 
-    const vertexSize   = 4 * 4; // 4 x 4byte floats
-    const instUnitSize = (4 + 2 + 2) * 4; // 8 x 4byte floats
-
-    const vertexLayout = [
-        {arrayStride: vertexSize,   stepMode: 'vertex',   attributes: [ {shaderLocation: 0, offset:  0, format: 'float32x2'},
-                {shaderLocation: 2, offset:  8, format: 'float32x2'} ]}, // Per Vertex Position
-        {arrayStride: instUnitSize, stepMode: 'instance', attributes: [ {shaderLocation: 1, offset:  0, format: 'float32x4'},   // Per Instance Color
-                {shaderLocation: 3, offset: 16, format: 'float32x2'},  // Per Instance Offset
-                {shaderLocation: 4, offset: 24, format: 'float32x2'}]}  // Per Instance Scale
-    ];
-
-    const vertexBufferSize = vertexData.byteLength;
-    const instBufferSize   = instUnitSize * maxObjects;
-    const indexBufferSize  = indexData.byteLength;
-
-    // create buffers
-    const vertexBuf = device.createBuffer({
-        label: 'Vertex buffer for objects',
-        size: vertexBufferSize,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-    });
-
-    const instBuf = device.createBuffer({
-        label: 'Instance data buffer for objects',
-        size: instBufferSize,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-    });
-
-    const indexBuf = device.createBuffer({
-        label: 'Index buffer for objects',
-        size: indexBufferSize,
-        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
-    });
-
-    const uniformBuf = device.createBuffer({
-        label: 'Uniform buffer for objects',
-        size: 16 * 4 * 2,
+    // Uniform Buffer that will hold projection and view matrix.
+    const matrixUniformBuffer = device.createBuffer({
+        label: 'Uniform buffer for projection/view matrices',
+        size: (16 * 2) * 4,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
-    // write to buffer
-    device.queue.writeBuffer(vertexBuf, 0, vertexData);
-    device.queue.writeBuffer(indexBuf, 0, indexData);
-
     // HACK: need to swap this out with real buffer
-    const instanceValuesF32 = new Float32Array(instBufferSize / 4);
+    const instanceValuesF32 = new Float32Array((4+2+2) * maxCircleInstances);
     updateInstanceValues(instanceValuesF32, circleObjs);
-    /*
-    for (let i = 0; i < maxObjects; i++)
-    {
-        const strideF32 = i * 8; // Stride
-        instanceValuesF32.set([rand(), rand(), rand(), 1], strideF32 + 0);
-        instanceValuesF32.set([(rand()-0.5) * 2, (rand()-0.5) * 2], strideF32 + 4)
-        instanceValuesF32.set([0.1,0.1], strideF32 + 6);
-    }
-     */
-    device.queue.writeBuffer(instBuf, 0, instanceValuesF32);
+
+    device.queue.writeBuffer(circleBuffers.instanceBuffer, 0, instanceValuesF32);
 
     let uniformValues = new Float32Array(32);
 
-    const circlePipeline = device.createRenderPipeline(
+    const squarePipeline = device.createRenderPipeline(
         {
-            label: 'Circle Pipeline',
+            label: 'Square Pipeline',
             layout: 'auto',
-            vertex:   { module: circleShaderModule, buffers: vertexLayout},
-            fragment: { module: circleShaderModule, targets: [ {format: presentationFmt} ]}
-        });
-
-    const renderPassDescriptor = {
-        label: 'main canvas renderer',
-        colorAttachments: [ {clearValue: [0.2,0.2, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
-    }
+            vertex:   { module: shaders.squareShader, buffers: squareBuffers.layout},
+            fragment: { module: shaders.squareShader, targets: [ {format: presentationFmt} ] }
+        }
+    );
+    const circlePipeline = device.createRenderPipeline(
+    {
+        label: 'Circle Pipeline',
+        layout: 'auto',
+        vertex:   { module: shaders.circleShader, buffers: circleBuffers.layout},
+        fragment: { module: shaders.circleShader, targets: [ {format: presentationFmt} ]}
+    });
 
     const bindGroup = device.createBindGroup({
         label: 'circle bind group',
         layout: circlePipeline.getBindGroupLayout(0),
-        entries: [ {binding: 0, resource: {buffer: uniformBuf} }]
+        entries: [ { binding: 0, resource: {buffer: matrixUniformBuffer} }]
     });
-    function render()
-    {
-        // Update Simulation State
-        simHandler.update(1.0/120.0);
-        
-        // simModule.update(0.01, testS);
-        // Get pointer to location of instance buffer in wasm memory
-        let instanceBufferPtr = simModule.get_instance_buffer_ptr();
-        // Get a F32 array view into the buffer
-        let instanceBuffer = new Float32Array(simModule.memory.buffer, instanceBufferPtr, maxObjects * (instUnitSize/4));
 
-        //updateObjects(circleObjs);
-        //updateInstanceValues(instanceValuesF32, circleObjs);
-        device.queue.writeBuffer(instBuf, 0, instanceBuffer);
+    const sqrBindGroup = device.createBindGroup({
+        label: 'square bind group',
+        layout: squarePipeline.getBindGroupLayout(0),
+        entries: [ {binding: 0, resource: {buffer: matrixUniformBuffer} }]
+    });
+
+    const renderPassDescriptor = {
+        label: 'main canvas renderer',
+        colorAttachments: [ {clearValue: [0.15,0.15, 0.3, 1], loadOp: 'clear', storeOp: 'store'} ]
+    }
+
+    // MENU INPUT
+    let switch_1 = document.getElementById("1"),
+        switch_3 = document.getElementById("3"),
+        sepParticlesSwitch = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
+
+    let flipRatioSlider= document.getElementById("slider1");
+    let gravitySlider = document.getElementById("slider2"); // refer to slider_X.value
+    let gridSwitch = document.getElementById("2");
+    const infoElem = document.querySelector('#info');
+    let zoom = 3.0;
+
+    // MOUSE INPUT
+    let mouse_x = 0, mouse_y = 0, mouse_down = 0; // mouse_down = {0: false; 1: true}
+    window.addEventListener('mousedown', function(event){mouse_down = 1;});
+    window.addEventListener('mouseup', function(event){mouse_down = 0;});
+    window.addEventListener('mousemove', (event) => { mouse_x = event.clientX; mouse_y = event.clientY;} );
+    window.addEventListener("wheel", (event) => {zoom += event.deltaY * 0.002; if (zoom < 0.1) { zoom = 0.1;}});
+
+    let then = 0;
+    function render(now)
+    {
+        now *= 0.001;
+        const deltaTime = now - then;
+        then = now;
+
+        // Calculate Mouse Position
         const aspect = canvas.width/canvas.height;
-        const zoom = 4.0;
+
+        // Create projection and view matrices
         const l = (-aspect/2) * zoom;
         const r = -l;
         const t = zoom/2;
         const b = -t;
         ortho(l, r, b, t, 200, -100, projectionMat);
-        view(-aspect/2,-zoom/4, viewMat);
+        view(-1.5,-1.5, viewMat);
+
+        let rect = canvas.getBoundingClientRect();
+        let mouse_viewport = [mouse_x - rect.left, mouse_y - rect.top];
+        let mouse_ndc = getMousePosNDC(mouse_viewport[0],mouse_viewport[1], rect.width, rect.height);
+        let mouse_world = mat4MultV2(invertMat4(mulMat4(viewMat, projectionMat)), mouse_ndc);
+
+        // Renderer Start Pass
+
+        // Update Simulation State
+        const simStartTime = performance.now();
+        simHandler.update(mouse_world[0], mouse_world[1], gravitySlider.value, flipRatioSlider.value, sepParticlesSwitch.querySelector('input').checked);
+        const simTime = performance.now() - simStartTime;
+
+        const info = simHandler.get_debug_info();
+
+        simHandler.render();
+
+        // Renderer End Pass
+        // Get pointer to location of instance buffer in wasm memory
+        let circleInstBufPtr = simModule.get_circle_instance_buf_ptr();
+        let squareInstBufPtr = simModule.get_square_instance_buf_ptr();
+
+        // Get a F32 array view into the buffer
+        let circleInstanceBufferF32 = new Float32Array(simModule.memory.buffer, circleInstBufPtr, maxCircleInstances * (4 + 2 + 2));
+        let squareInstanceBufferF32 = new Float32Array(simModule.memory.buffer, squareInstBufPtr, maxSquareInstances * (4 + 2 + 1));
+
+        device.queue.writeBuffer(circleBuffers.instanceBuffer, 0, circleInstanceBufferF32);
+        device.queue.writeBuffer(squareBuffers.instanceBuffer, 0, squareInstanceBufferF32);
+
         for (let i = 0; i < 16; i++)
         {
             uniformValues[i] = projectionMat[i];
             uniformValues[i + 16] = viewMat[i];
         }
-        device.queue.writeBuffer(uniformBuf, 0, uniformValues);
-        //
+        device.queue.writeBuffer(matrixUniformBuffer, 0, uniformValues);
+
         // Set canvas as texture to render too.
         renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
         const encoder = device.createCommandEncoder({ label: 'epic encoder'});
 
         const pass = encoder.beginRenderPass(renderPassDescriptor);
 
+        // Draw Circles
         pass.setPipeline(circlePipeline);
         pass.setBindGroup(0, bindGroup);
-        pass.setVertexBuffer(0, vertexBuf);
-        pass.setVertexBuffer(1, instBuf);
-        pass.setIndexBuffer(indexBuf, 'uint32');
-        pass.drawIndexed(6, maxObjects);
+        pass.setVertexBuffer(0, circleBuffers.vertexBuffer);
+        pass.setVertexBuffer(1, circleBuffers.instanceBuffer);
+        pass.setIndexBuffer(circleBuffers.indexBuffer, 'uint32');
+        pass.drawIndexed(6, maxCircleInstances);
 
+        // Draw Squares
+        pass.setPipeline(squarePipeline);
+        pass.setBindGroup(0, sqrBindGroup);
+        pass.setVertexBuffer(0, squareBuffers.vertexBuffer);
+        pass.setVertexBuffer(1, squareBuffers.instanceBuffer);
+        pass.setIndexBuffer(squareBuffers.indexBuffer, 'uint32');
+
+        // Draw Grid if option selected.
+        if (gridSwitch.querySelector('input').checked) {
+            pass.drawIndexed(6,maxSquareInstances);
+        }
         pass.end();
+
         const commandBuffer = encoder.finish();
 
         // Submit To GPUUUUU
         device.queue.submit([commandBuffer]);
+        infoElem.textContent = `fps: ${(1 / deltaTime).toFixed(1)}\n`
+            + `sim time: ${simTime.toFixed(1)}ms\n`
+            + `draw calls: ${drawCount}\n`
+            + `collision checks:\n${info.collision_checks.toLocaleString()}\n`
+            + `\nFluid:\nrest density: ${info.rest_density.toFixed(3)}\n`
+            + `num particles: ${info.num_particles}\n`
+            + `p num cells: ${info.p_num_cells}\n`
+            + `p num x: ${info.p_num_x}\n`
+            + `p num y: ${info.p_num_y}\n`
+            + `p inv spacing: ${info.p_inv_spacing.toFixed(2)}`;
 
         requestAnimationFrame(render);
     }
@@ -289,17 +302,6 @@ function main(device, simModule, circleShaderSrc)
     try   { observer.observe(canvas, {box: 'device-pixel-content-box'}); }
     catch { observer.observe(canvas, {box: 'content-box'}) }
 
-    // MENU INPUT
-    let switch_1 = document.getElementById("1"), switch_2 = document.getElementById("2"),
-    switch_3 = document.getElementById("3"), switch_4 = document.getElementById("4"); // refer to switch_X.querySelector('input').checked (returns T/F bool)
-    let slider_1 = document.getElementById("slider1");
-    let slider_2 = document.getElementById("slider2"); // refer to slider_X.value
-    
-    // MOUSE INPUT
-    let mouse_x, mouse_y, mouse_down = 0; // mouse_down = {0: false; 1: true}
-    window.addEventListener('mousedown', function(event){mouse_down = 1;});
-    window.addEventListener('mouseup', function(event){mouse_down = 0;});
-    window.addEventListener('mousemove', function(event){mouse_x = event.clientX; mouse_y = event.clientY;});
 
     /*
     CANVAS VALUE | (canvas.width) x (canvas.height)
@@ -312,15 +314,15 @@ function main(device, simModule, circleShaderSrc)
 
 const initWasm = async () =>
 {
-    console.log('!');
     // Load Wasm module so we can call Rust functions.
     const wasmModule = await wasmInit("./pkg/Fluid_Simulation_hackED_2025_bg.wasm");
+
     // Get the webGPU adapter device. (need it for graphics stuff)
     const device = await initWebGPU();
     // Fetch the circle shader .wgsl file and turn it into a string for GPU compiling.
-    const circleShaderSrc = await fetch("./shaders/circle.wgsl").then(x => x.text())
+    const shaders = await compileShaders(device);
 
-    main(device, wasmModule, circleShaderSrc);
+    main(device, wasmModule, shaders);
 };
 
 initWasm()
